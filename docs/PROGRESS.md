@@ -63,6 +63,27 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - The Playwright dependency reports npm audit findings in the demo toolchain; dependency upgrades are deferred until after the MVP path is stable.
 - Final reviewer PASS: no P0/P1 product blocker remains; P2 backlog is intentionally deferred after the 30-minute MVP-focused scope.
 
+## AI Quality & Avito Branding checkpoint
+
+- Added nine idempotent synthetic knowledge documents for environment setup, CLI, Git,
+  Jira/Stash, Grafana/Sentry, first week, team processes, Экватор and information security.
+  Existing rows are preserved by the existing primary-key seed guard.
+- RAG search now expands common Russian aliases and lightweight word forms without a new
+  dependency. Access filtering and secret checks remain before model context construction.
+- Chat distinguishes grounded answers, general Ollama recommendations explicitly marked as
+  unconfirmed by corporate documentation, offline fallback, and no-information escalation.
+  RBAC/ABAC, citations, conflict warnings and MCP confirmation are preserved.
+- Real Ollama checks: five different `/api/v1/chat/message` questions returned
+  `llm_mode=ollama`, `answer_status=grounded`, and citations. Restricted-document negative
+  coverage remains green.
+- Frontend uses shared Avito palette variables (`#00AAFF`, `#97CF26`, `#A169F7`, `#FF6163`,
+  white, `#F2F1F0`, black) across cards, navigation, calendar, roadmap, chat and modals,
+  with bright colors reserved for actions and state.
+- Verification: backend targeted tests 7 passed; frontend lint, typecheck, 16 tests and
+  production build passed; iPhone 13-width smoke passed with no horizontal overflow on
+  calendar or chat. Known P2: documents are synthetic demo content, and the lightweight
+  stemming heuristic can still rank a broad match above a more specific one.
+
 ## Local Ollama / Qwen2.5 checkpoint
 
 - Implemented `OllamaProvider` with local-only host validation and `POST /api/chat` using

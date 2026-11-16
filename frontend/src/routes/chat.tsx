@@ -96,9 +96,13 @@ export default function Chat() {
                 <ConflictWarningBanner conflict={message.response.conflict_warning} />
               )}
               <span className="source-chip">
-                {message.response.llm_mode === 'ollama'
-                  ? 'Ollama · Qwen2.5:3b'
-                  : 'Резервный offline-режим'}
+                {message.response.answer_status === 'general_unverified'
+                  ? 'Ollama · общая рекомендация (не подтверждено документацией)'
+                  : message.response.answer_status === 'no_info'
+                    ? 'Нет информации в базе знаний'
+                    : message.response.llm_mode === 'ollama'
+                      ? 'Ollama · Qwen2.5:3b'
+                      : 'Резервный offline-режим'}
               </span>
               <p>{message.response.reply}</p>
               <div className="actions">

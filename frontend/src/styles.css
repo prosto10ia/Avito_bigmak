@@ -646,3 +646,152 @@ label input {
     flex: 1 1 100%;
   }
 }
+
+/* Avito demo palette: bright accents are reserved for actions and status. */
+:root {
+  --avito-blue: #00aaff;
+  --avito-green: #97cf26;
+  --avito-purple: #a169f7;
+  --avito-red: #ff6163;
+  --avito-white: #ffffff;
+  --avito-bg: #f2f1f0;
+  --avito-black: #000000;
+  --avito-muted: #596067;
+  --avito-border: #dedfe1;
+  --avito-blue-soft: #e5f6ff;
+  --avito-green-soft: #f1f8df;
+  --avito-purple-soft: #f1eaff;
+  --avito-red-soft: #fff0f0;
+}
+
+body,
+.app,
+.chat-form {
+  background: var(--avito-bg);
+  color: var(--avito-black);
+}
+.topbar,
+.bottom-nav,
+.mascot-card,
+.panel,
+.action-widget,
+.node-card,
+.event,
+.profile-grid div,
+.role-switcher,
+.modal,
+.chat-message,
+.calendar-day {
+  background: var(--avito-white);
+  border-color: var(--avito-border);
+  box-shadow: none;
+}
+.eyebrow,
+.muted,
+.mascot-card p,
+.node-card small,
+.bottom-nav a,
+.profile-grid span,
+.calendar-grid > strong {
+  color: var(--avito-muted);
+}
+.demo-label,
+.node-done,
+.event-team_sync {
+  color: #335400;
+  background: var(--avito-green-soft);
+}
+.demo-label {
+  border: 1px solid var(--avito-green);
+}
+.mascot-card progress,
+.profile-avatar {
+  accent-color: var(--avito-purple);
+  background: var(--avito-purple);
+}
+.bottom-nav a.active,
+.node-card b,
+.node-active,
+.event-one_on_one,
+.source-preview summary {
+  color: #6635a8;
+}
+.bottom-nav a.active,
+.node-active {
+  border-color: var(--avito-purple);
+}
+.node-card:hover,
+.node-card:focus-visible,
+.event-deadline {
+  border-color: var(--avito-blue);
+}
+.node-waiting_approval,
+.warning,
+.event-equator_defense {
+  border-color: var(--avito-red);
+  background: #fff5e8;
+}
+.node-locked {
+  opacity: 0.62;
+  background: #f7f7f7;
+}
+.error {
+  color: #9e2527;
+  background: var(--avito-red-soft);
+}
+.empty {
+  color: #41474d;
+  background: #e7e6e4;
+}
+.warning {
+  color: #664900;
+}
+.source-chip,
+.chip,
+.tag-list button,
+.button-link,
+.user-message {
+  color: #56318d;
+  background: var(--avito-purple-soft);
+}
+.source-chip:hover,
+.source-chip:focus-visible,
+.button-link:hover,
+.button-link:focus-visible,
+.chip:hover,
+.chip:focus-visible {
+  outline: 2px solid var(--avito-purple);
+  outline-offset: 2px;
+}
+button,
+.actions button,
+.score-row button {
+  background: var(--avito-blue);
+  color: var(--avito-black);
+}
+button:hover:not(:disabled),
+button:focus-visible {
+  background: #008ed6;
+}
+.actions .secondary,
+.close {
+  background: var(--avito-blue-soft);
+  color: #004d73;
+}
+.selected {
+  background: var(--avito-purple) !important;
+  color: var(--avito-white) !important;
+}
+.calendar-day b {
+  background: var(--avito-blue);
+  color: var(--avito-black);
+}
+.event {
+  border-left-color: var(--avito-blue);
+}
+.modal-backdrop {
+  background: #00000066;
+}
+.profile-avatar {
+  color: var(--avito-white);
+}

@@ -5,9 +5,63 @@ from sqlalchemy import select
 from ..middleware.rbac import can_read_chunk
 from ..models import KnowledgeChunk
 
+TERM_ALIASES = {
+    "окружение": {"окружение", "настройка", "установка", "setup", "environment", "ноутбук"},
+    "cli": {"cli", "команд", "терминал", "консоль", "avito-cli"},
+    "git": {"git", "ветк", "коммит", "merge", "ревью", "pull", "push"},
+    "jira": {"jira", "задач", "тикет", "доступ"},
+    "stash": {"stash", "репозитор", "ssh", "код"},
+    "grafana": {"grafana", "метрик", "дашборд", "мониторинг"},
+    "sentry": {"sentry", "ошибк", "исключен", "логирован"},
+    "неделя": {"недел", "адаптац", "онбординг", "стажировк"},
+    "процесс": {"процесс", "синк", "встреч", "команд", "согласован"},
+    "экватор": {"экватор", "итог", "обратн", "результат"},
+    "безопасность": {"безопас", "security", "секрет", "доступ", "приватн"},
+}
+ALIAS_TO_CANONICAL = {
+    alias: canonical for canonical, aliases in TERM_ALIASES.items() for alias in aliases
+}
+RUSSIAN_ENDINGS = (
+    "иями",
+    "ами",
+    "ями",
+    "ого",
+    "ему",
+    "ами",
+    "ов",
+    "ев",
+    "ах",
+    "ях",
+    "ы",
+    "и",
+    "а",
+    "я",
+    "у",
+    "ю",
+    "ом",
+    "ем",
+    "е",
+)
+
 
 def _terms(text: str) -> set[str]:
-    return {word.lower().strip(".,!?():;") for word in text.split() if len(word) > 2}
+    terms = set()
+    for raw_word in text.lower().replace("ё", "е").split():
+        word = raw_word.strip(".,!?():;\"'«»—–")
+        if len(word) <= 2:
+            continue
+        terms.add(word)
+        terms.add(ALIAS_TO_CANONICAL.get(word, word))
+        for ending in RUSSIAN_ENDINGS:
+            if word.endswith(ending) and len(word) - len(ending) >= 4:
+                terms.add(word[: -len(ending)])
+                break
+    expanded = set(terms)
+    for canonical, aliases in TERM_ALIASES.items():
+        if terms & {canonical, *aliases}:
+            expanded.update(aliases)
+            expanded.add(canonical)
+    return expanded
 
 
 def search(session, user, question: str):

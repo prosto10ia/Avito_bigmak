@@ -120,6 +120,39 @@ def test_chat_reports_ollama_and_falls_back_without_leaking_access(monkeypatch, 
     assert fallback["sources"][0]["content"] in fallback["reply"]
 
 
+def test_chat_distinguishes_grounded_general_and_no_info(monkeypatch, client):
+    import app.api.chat as chat_api
+
+    monkeypatch.setattr(chat_api.OllamaProvider, "generate", lambda self, prompt: "Общий ответ")
+    grounded = client.post(
+        "/api/v1/chat/message", headers=headers(), json={"message": "Как настроить окружение?"}
+    ).get_json()
+    assert grounded["answer_status"] == "grounded"
+    assert grounded["sources"]
+
+    general = client.post(
+        "/api/v1/chat/message",
+        headers=headers(),
+        json={"message": "zzzxylophone qqqq"},
+    ).get_json()
+    assert general["answer_status"] == "general_unverified"
+    assert general["llm_mode"] == "ollama"
+    assert general["sources"] == []
+
+    def unavailable(self, prompt):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(chat_api.OllamaProvider, "generate", unavailable)
+    no_info = client.post(
+        "/api/v1/chat/message",
+        headers=headers(),
+        json={"message": "zzzxylophone qqqq"},
+    ).get_json()
+    assert no_info["answer_status"] == "no_info"
+    assert no_info["llm_mode"] == "offline"
+    assert no_info["escalation"]["recipient"] == "buddy"
+
+
 def test_mcp_confirmation_idempotency_and_security(client):
     action = client.post(
         "/api/v1/chat/message", headers=headers(), json={"message": "Оформи отгул"}
