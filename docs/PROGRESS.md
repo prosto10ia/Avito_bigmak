@@ -33,7 +33,7 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - Scope completed: dashboard task/meeting/progress cards and quick links; roadmap node detail states and deep links; chat user messages, local synthetic-source preview, copy/cancel/loading/error/success states; calendar month/day navigation, today reset, date filtering and event details; profile progress/reward details and role-switch feedback.
 - Regression evidence: `bash scripts/check.sh` passed; frontend 16 Vitest tests with 97.32% configured coverage, backend 29 pytest tests with 88.77% coverage, production build and 4 Playwright E2E tests passed.
 - Security follow-up: side-effect MCP tools now require a chat-persisted proposal bound to user, tool, idempotency key and exact payload; exact confirmed replay remains idempotent. Roadmap service actions use that proposal flow, with the active service-action node selected server-side; onboarding verification is exposed only through the protected roadmap endpoint. Added `backend/tests/test_mcp_proposal_binding.py` and updated affected contract tests.
-- Current commit: will be recorded in the follow-up documentation commit. `.DS_Store` remains an unrelated user change and is not staged.
+- Current commit: `e70b2ac` (`feat: polish interactive demo ui`). `.DS_Store` remains an unrelated user change and is not staged.
 
 ### Deferred P2 backlog
 
