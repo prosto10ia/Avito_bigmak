@@ -96,7 +96,9 @@ class DailyPulse(Base):
     user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"))
     pulse_date: Mapped[date] = mapped_column(Date, default=date.today)
     mood_score: Mapped[int] = mapped_column(Integer)
-    blocker_tags: Mapped[list] = mapped_column(JSON, default=list)
+    blocker_tags: Mapped[list] = mapped_column(
+        JSON().with_variant(ARRAY(String), "postgresql"), default=list
+    )
     comment: Mapped[str | None] = mapped_column(Text)
     xp_awarded: Mapped[int] = mapped_column(Integer, default=15)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

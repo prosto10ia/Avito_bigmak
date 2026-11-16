@@ -1,7 +1,8 @@
 import pytest
+from sqlalchemy.dialects.postgresql import ARRAY, dialect
 
 from app.db import session_scope
-from app.models import User
+from app.models import DailyPulse, User
 from app.services.gamification import level_for_xp
 from seed import seed
 
@@ -33,6 +34,26 @@ def test_roadmap_verify_is_idempotent_and_guarded(client):
     assert (
         client.get("/api/v1/roadmap", headers=headers()).get_json()["nodes"][0]["status"] == "done"
     )
+    wrong_type = client.post(
+        "/api/v1/roadmap/nodes/node_w1_intro/verify",
+        headers=headers(),
+        json={"artifact_type": "quiz_answers", "content": "looks good"},
+    )
+    assert wrong_type.status_code == 422
+    assert wrong_type.get_json()["status"] == "rejected"
+    screenshot = client.post(
+        "/api/v1/roadmap/nodes/node_w1_intro/verify",
+        headers=headers(),
+        json={"artifact_type": "screenshot", "content": "demo screenshot reference"},
+    )
+    assert screenshot.status_code == 200
+    invalid_cli = client.post(
+        "/api/v1/roadmap/nodes/node_w1_cli/verify",
+        headers=headers(),
+        json={"artifact_type": "cli_log", "content": "avito-cli: FAIL authenticated"},
+    )
+    assert invalid_cli.status_code == 422
+    assert invalid_cli.get_json()["status"] == "rejected"
     blocked = client.post(
         "/api/v1/roadmap/nodes/node_w1_cli/verify",
         headers=headers(),
@@ -45,6 +66,11 @@ def test_roadmap_verify_is_idempotent_and_guarded(client):
 @pytest.mark.parametrize("xp, expected", [(0, 1), (99, 1), (100, 2), (250, 3), (-20, 1)])
 def test_level_invariant(xp, expected):
     assert level_for_xp(xp) == expected
+
+
+def test_daily_pulse_uses_postgres_array_storage():
+    column_type = DailyPulse.__table__.c.blocker_tags.type
+    assert isinstance(column_type.dialect_impl(dialect()), ARRAY)
 
 
 def test_rag_collision_and_negative_access(client):

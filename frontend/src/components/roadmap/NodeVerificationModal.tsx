@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { RoadmapNode } from '../../types/domain';
 import { inspectForSecrets } from '../../lib/guardrails';
+import { ActionRequestWidget } from '../ui';
 
 export function NodeVerificationModal({
   node,
@@ -8,16 +9,19 @@ export function NodeVerificationModal({
   onVerify,
   isLoading,
   error,
+  resultTicket,
 }: {
   node: RoadmapNode;
   onClose: () => void;
   onVerify: (artifactType: string, content: string) => void;
   isLoading: boolean;
   error?: string;
+  resultTicket?: string;
 }) {
   const [content, setContent] = useState('');
   const [answers, setAnswers] = useState(['', '', '']);
   const isQuiz = node.node_type === 'quiz';
+  const isServiceAction = node.node_type === 'service_action';
   const value = isQuiz ? answers.join(' | ') : content;
   const secret = inspectForSecrets(value);
   return (
@@ -31,11 +35,20 @@ export function NodeVerificationModal({
         </span>
         <h2 id="node-modal-title">{node.title}</h2>
         <p className="muted">{node.description}</p>
-        {node.node_type === 'service_action' && (
-          <div className="panel">
-            <strong>request_service_access</strong>
-            <p className="muted">Jira · Auto · read</p>
-          </div>
+        {isServiceAction && (
+          <ActionRequestWidget
+            action={{
+              tool_name: 'request_service_access',
+              title: 'Запросить доступ в Jira',
+              summary: 'Jira · Auto · read. Заявка будет создана в офлайн-демо.',
+              payload: { service_name: 'jira', project_key: 'AUTO', access_level: 'read' },
+              idempotency_key: `roadmap:${node.id}`,
+            }}
+            onConfirm={() => onVerify('service_access', '')}
+            onCancel={onClose}
+            isLoading={isLoading}
+            resultTicket={resultTicket}
+          />
         )}
         {isQuiz ? (
           <div className="quiz-fields">
@@ -75,34 +88,51 @@ export function NodeVerificationModal({
             </>
           )
         )}
-        {secret.blocked && (
+        {resultTicket && !isServiceAction && (
+          <div className="panel" role="status">
+            <strong>Заявка {resultTicket} создана</strong>
+            <p className="muted">Действие подтверждено в офлайн-демо.</p>
+          </div>
+        )}
+        {secret.blocked && !resultTicket && (
           <div className="error" role="alert">
             {secret.reason} Отправка заблокирована локально.
           </div>
         )}
-        {error && (
+        {error && !resultTicket && (
           <div className="error" role="alert">
             {error}
           </div>
         )}
-        <div className="actions">
-          <button className="secondary" onClick={onClose}>
-            Отмена
-          </button>
-          <button
-            onClick={() =>
-              onVerify(
-                isQuiz ? 'quiz_answers' : node.node_type === 'guide' ? 'cli_log' : 'service_access',
-                value,
-              )
-            }
-            disabled={
-              isLoading || secret.blocked || (!value && node.node_type !== 'service_action')
-            }
-          >
-            {isLoading ? 'Проверяем…' : 'Отправить на проверку'}
-          </button>
-        </div>
+        {!resultTicket && !isServiceAction && (
+          <div className="actions">
+            <button className="secondary" onClick={onClose}>
+              Отмена
+            </button>
+            <button
+              onClick={() =>
+                onVerify(
+                  isQuiz
+                    ? 'quiz_answers'
+                    : node.node_type === 'guide'
+                      ? 'cli_log'
+                      : 'service_access',
+                  value,
+                )
+              }
+              disabled={
+                isLoading || secret.blocked || (!value && node.node_type !== 'service_action')
+              }
+            >
+              {isLoading ? 'Проверяем…' : 'Отправить на проверку'}
+            </button>
+          </div>
+        )}
+        {resultTicket && !isServiceAction && (
+          <div className="actions">
+            <button onClick={onClose}>Готово</button>
+          </div>
+        )}
       </section>
     </div>
   );

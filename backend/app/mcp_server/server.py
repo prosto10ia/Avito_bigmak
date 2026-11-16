@@ -46,6 +46,17 @@ def verify_onboarding_task(session, user, payload):
             "status": "rejected",
             "message": "Node dependency is not complete",
         }, 422
+    allowed_artifacts = {
+        "guide": {"cli_log", "screenshot"},
+        "quiz": {"quiz_answers"},
+    }.get(node.node_type, set())
+    if node.node_type == "service_action" or payload.get("artifact_type") not in allowed_artifacts:
+        return {
+            "success": False,
+            "tool_name": "verify_onboarding_task",
+            "status": "rejected",
+            "message": "Use the matching verification flow for this node",
+        }, 422
     if not validate_no_secrets(payload.get("content", "")):
         return {"error": "GUARDRAIL_SECRET_DETECTED"}, 422
     ok, message = validate_artifact(payload.get("artifact_type", ""), payload.get("content", ""))

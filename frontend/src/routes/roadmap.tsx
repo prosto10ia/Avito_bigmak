@@ -23,6 +23,7 @@ export default function Roadmap() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<RoadmapNode | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [serviceTicket, setServiceTicket] = useState('');
   const query = useQuery({ queryKey: ['roadmap', profile.id, profile.role], queryFn: api.roadmap });
   const verify = useMutation({
     mutationFn: ({
@@ -46,8 +47,20 @@ export default function Roadmap() {
             idempotency_key: `roadmap:${nodeId}`,
           })
         : api.verifyNode(nodeId, { artifact_type, content }),
-    onSuccess: () => {
-      setSelected(null);
+    onSuccess: (response, variables) => {
+      if (variables.artifact_type === 'service_access') {
+        const externalTicket =
+          'external_ticket_id' in response && typeof response.external_ticket_id === 'string'
+            ? response.external_ticket_id
+            : undefined;
+        if (!externalTicket) {
+          setFeedback('Сервис не вернул номер заявки; действие не подтверждено.');
+          return;
+        }
+        setServiceTicket(externalTicket);
+      } else {
+        setSelected(null);
+      }
       queryClient.invalidateQueries({ queryKey: ['roadmap'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
@@ -104,12 +117,16 @@ export default function Roadmap() {
       {selected && (
         <NodeVerificationModal
           node={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            setServiceTicket('');
+          }}
           onVerify={(artifact_type, content) =>
             verify.mutate({ nodeId: selected.id, artifact_type, content })
           }
           isLoading={verify.isPending}
           error={feedback}
+          resultTicket={serviceTicket || undefined}
         />
       )}
     </div>
