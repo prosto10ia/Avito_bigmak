@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from flask import Blueprint, g, jsonify, request
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from ..auth import current_user
 from ..db import session_scope
@@ -22,6 +22,11 @@ def pulse():
     with session_scope() as session:
         user = session.get(User, g.user.id)
         today = date.today()
+        if session.bind.dialect.name == "postgresql":
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+                {"lock_key": f"pulse:{user.id}:{today.isoformat()}"},
+            )
         existing = session.scalar(
             select(DailyPulse).where(DailyPulse.user_id == user.id, DailyPulse.pulse_date == today)
         )

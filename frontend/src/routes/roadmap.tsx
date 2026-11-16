@@ -37,7 +37,12 @@ export default function Roadmap() {
       artifact_type === 'service_access'
         ? api.executeMcp({
             tool_name: 'request_service_access',
-            payload: { service_name: 'jira', project_key: 'AUTO', access_level: 'read' },
+            payload: {
+              node_id: nodeId,
+              service_name: 'jira',
+              project_key: 'AUTO',
+              access_level: 'read',
+            },
             idempotency_key: `roadmap:${nodeId}`,
           })
         : api.verifyNode(nodeId, { artifact_type, content }),

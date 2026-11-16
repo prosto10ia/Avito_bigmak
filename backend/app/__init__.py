@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from sqlalchemy import text
 
 from . import db
 from .config import Config
@@ -37,6 +38,26 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok", "offline_llm": not bool(app.config.get("LLM_API_KEY"))})
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            redis_status = "skipped"
+            if not app.config.get("TESTING"):
+                from redis import Redis
+
+                Redis.from_url(
+                    app.config["REDIS_URL"], socket_connect_timeout=1, socket_timeout=1
+                ).ping()
+                redis_status = "ok"
+            return jsonify(
+                {
+                    "status": "ok",
+                    "database": "ok",
+                    "redis": redis_status,
+                    "offline_llm": not bool(app.config.get("LLM_API_KEY")),
+                }
+            )
+        except Exception:
+            return jsonify({"status": "degraded", "database": "unavailable"}), 503
 
     return app

@@ -1,4 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { createApiClient, roleLabel } from '../api/client';
 import { RoleSwitcherBadge } from '../components/ui';
 import { useAuthStore } from '../store/useAuthStore';
@@ -9,6 +10,13 @@ const api = createApiClient(() => ({
 export default function Profile() {
   const profile = useAuthStore((state) => state.profile);
   const switchRole = useAuthStore((state) => state.switchRole);
+  const query = useQuery({
+    queryKey: ['profile', profile.id, profile.role],
+    queryFn: api.dashboard,
+  });
+  useEffect(() => {
+    if (query.data?.profile) switchRole(query.data.profile);
+  }, [query.data?.profile, switchRole]);
   const mutation = useMutation({ mutationFn: api.switchRole, onSuccess: switchRole });
   return (
     <div className="page">

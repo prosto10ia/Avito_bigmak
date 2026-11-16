@@ -1,12 +1,13 @@
 import hashlib
+import json
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from ..middleware.guardrails import validate_no_secrets
 from ..middleware.rbac import assert_project_access
-from ..models import CalendarEvent, RoadmapNode, ServiceRequest, User
+from ..models import CalendarEvent, RoadmapNode, ServiceRequest, User, UserNodeProgress
 from ..services.gamification import complete_node
 from .adapters import absence, access, validate_artifact
 
@@ -81,6 +82,13 @@ def validate_tool_payload(tool_name: str, payload: dict):
         "admin",
     }:
         return "INVALID_REQUEST"
+    if tool_name == "request_service_access" and payload["service_name"] not in {
+        "jira",
+        "confluence",
+        "stash",
+        "k8s_namespace",
+    }:
+        return "INVALID_REQUEST"
     if tool_name == "schedule_calendar_meeting":
         try:
             if not 15 <= int(payload["duration_min"]) <= 240:
@@ -92,6 +100,11 @@ def validate_tool_payload(tool_name: str, payload: dict):
 
 
 def execute(session, user, tool_name: str, payload: dict, key: str):
+    if session.bind.dialect.name == "postgresql":
+        session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+            {"lock_key": f"mcp:{key}"},
+        )
     existing = session.scalar(
         select(ServiceRequest).where(ServiceRequest.idempotency_key == key).with_for_update()
     )
@@ -101,6 +114,8 @@ def execute(session, user, tool_name: str, payload: dict, key: str):
         return existing.payload, 200
     if tool_name not in TOOLS:
         return {"error": "UNKNOWN_TOOL"}, 422
+    if not validate_no_secrets(json.dumps(payload, ensure_ascii=False)):
+        return {"error": "GUARDRAIL_SECRET_DETECTED"}, 422
     invalid = validate_tool_payload(tool_name, payload)
     if invalid:
         return {"error": invalid}, 422
@@ -127,12 +142,31 @@ def execute(session, user, tool_name: str, payload: dict, key: str):
         if denied:
             return {"error": denied[0]}, denied[1]
         external = access(request_id)
-        access_node = session.scalar(
-            select(RoadmapNode).where(
-                RoadmapNode.node_type == "service_action",
-                RoadmapNode.id == "node_m1_access",
+        access_node = (
+            session.get(RoadmapNode, payload.get("node_id"))
+            if payload.get("node_id")
+            else session.scalar(
+                select(RoadmapNode).where(
+                    RoadmapNode.node_type == "service_action", RoadmapNode.id == "node_m1_access"
+                )
             )
         )
+        if access_node and access_node.node_type != "service_action":
+            return {"error": "INVALID_REQUEST"}, 422
+        if payload.get("node_id"):
+            target_node_id = access_node.id if access_node else payload["node_id"]
+            progress = session.scalar(
+                select(UserNodeProgress).where(
+                    UserNodeProgress.user_id == user.id,
+                    UserNodeProgress.node_id == target_node_id,
+                )
+            )
+            if (
+                access_node is None
+                or progress is None
+                or progress.status not in {"active", "waiting_approval"}
+            ):
+                return {"error": "INVALID_REQUEST"}, 422
         if access_node:
             complete_node(session, user, access_node, external, "Service access request completed")
     elif tool_name == "schedule_calendar_meeting":

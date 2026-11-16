@@ -252,6 +252,7 @@ def seed() -> None:
             )
         extra_events = [
             ("event_team_sync_1", "Синк команды", "team_sync", 2, "Статус адаптации"),
+            ("event_deadline_1", "Дедлайн CLI", "deadline", 5, "Закрыть первый шаг адаптации"),
             (
                 "event_equator_1",
                 "Экватор адаптации",

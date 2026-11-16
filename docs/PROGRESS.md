@@ -7,7 +7,7 @@ Stage 1–5 MVP implementation is present. Lead-owned SDD v1.0, Compose topology
 - [x] Stage 3 — RAG / conflicts / escalation (role/cluster filtering, citations, conflict warning and escalation)
 - [x] Stage 4 — MCP / confirmation (four simulated tools, confirmation, payload validation and user-scoped idempotency)
 - [x] Stage 5 — calendar / pulse / summaries (calendar aggregation, offline summary and once-per-day pulse)
-- [ ] Stage 6 — end-to-end / demo readiness
+- [ ] Stage 6 — end-to-end / demo readiness (implementation and gate are green; independent review pending)
 
 For each checkpoint record: stage, tech.md version, commit, tests and exit codes, actual coverage, reviewer verdict/findings, unresolved decisions, next step. If interrupted, resume first unverified stage from current working tree; do not reset it.
 
@@ -18,14 +18,21 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - [x] `/health`, dashboard, role switch and telemetry persist/validate state; auth mismatch and bad demo code are rejected.
 - [x] Frontend five-tab browser fallback, role switch and dashboard render with typed client/UI primitives.
 - [x] Frontend/backend format, lint, typecheck, tests, coverage >80%, production build; Playwright image is pinned to the matching 1.65.1 browser runtime.
-- [ ] Fresh independent reviewer returns PASS; current reviewer found P1 contract/security issues, which were fixed locally; a new review is required before final completion.
+- [ ] Fresh independent reviewer returns PASS; the prior review's P1 findings are fixed in the current working tree.
 
 ## MVP evidence checkpoint
 
-- Backend: `pytest` 26 tests, 92.14% coverage; Ruff format/check pass.
-- Frontend: 9 Vitest tests, 94.5% configured coverage, format/lint/typecheck/build pass.
+- Backend: `pytest` 26 tests, 89% coverage; Ruff format/check pass.
+- Frontend: 9 Vitest tests, 94.63% configured coverage, format/lint/typecheck/build pass.
 - Acceptance QA: roadmap/RAG/MCP/calendar/pulse QA scenarios pass after contract fixes.
-- Full gate passed with `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 bash scripts/check.sh`: Compose build/start, healthchecks, frontend checks/build, backend checks/tests, and 2 Playwright E2E passed. The default BuildKit path remains blocked by the local Docker Desktop permission error.
+- Full gate previously passed with `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 bash scripts/check.sh`; after the current fixes, backend/frontend rebuild, service-action walkthrough, readiness probe, frontend checks, backend tests and 2 Playwright E2E pass. The default BuildKit path is available in this run; classic mode remains the documented fallback.
+
+## Current MVP fixes
+
+- `/health` probes PostgreSQL and Redis and returns `503` when dependencies are unavailable; tests skip Redis only for isolated SQLite unit apps.
+- MCP validates the complete payload for secrets before side effects, restricts service names, scopes idempotency to user/tool and uses PostgreSQL advisory locks for concurrent first calls.
+- Service-action confirmation carries the selected roadmap node and only completes an active/waiting-approval service node; Daily Pulse uses the same concurrency protection.
+- Profile data is hydrated from the backend when the profile tab opens; seed includes one-on-one, team sync, deadline and equator events.
 
 ## Unresolved contract gaps
 

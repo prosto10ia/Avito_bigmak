@@ -22,7 +22,6 @@ def dashboard():
                 & (UserNodeProgress.user_id == g.user.id),
             )
             .order_by(RoadmapNode.order_index)
-            .limit(3)
         ).all()
         meetings = session.scalars(
             select(CalendarEvent)
@@ -35,6 +34,11 @@ def dashboard():
                 DailyPulse.user_id == g.user.id, DailyPulse.pulse_date == date.today()
             )
         )
+        nodes = [
+            (node, progress)
+            for node, progress in nodes
+            if progress and progress.status in {"active", "waiting_approval"}
+        ][:3]
         data = profile(g.user, session)
         data["pulse_completed_today"] = pulse is not None
         return jsonify(

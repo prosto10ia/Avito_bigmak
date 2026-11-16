@@ -1,9 +1,11 @@
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from ..auth import current_user
 from ..db import session_scope
 from ..mcp_server.server import execute
-from ..models import User
+from ..models import ServiceRequest, User
 from ..schemas import ExecuteMCPRequest
 
 bp = Blueprint("mcp", __name__)
@@ -19,11 +21,24 @@ def mcp_execute():
     if not payload.confirmed:
         return jsonify({"error": "CONFIRMATION_REQUIRED"}), 422
     with session_scope() as session:
-        result, status = execute(
-            session,
-            session.get(User, g.user.id),
-            payload.tool_name,
-            payload.payload,
-            payload.idempotency_key,
-        )
+        try:
+            result, status = execute(
+                session,
+                session.get(User, g.user.id),
+                payload.tool_name,
+                payload.payload,
+                payload.idempotency_key,
+            )
+        except IntegrityError:
+            session.rollback()
+            existing = session.scalar(
+                select(ServiceRequest).where(
+                    ServiceRequest.idempotency_key == payload.idempotency_key,
+                    ServiceRequest.user_id == g.user.id,
+                    ServiceRequest.tool_name == payload.tool_name,
+                )
+            )
+            if existing is None:
+                return jsonify({"error": "IDEMPOTENCY_CONFLICT"}), 409
+            result, status = existing.payload, 200
         return jsonify(result), status

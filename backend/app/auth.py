@@ -1,10 +1,11 @@
+from datetime import date
 from functools import wraps
 
 from flask import current_app, g, jsonify, request
 from sqlalchemy import select
 
 from .db import session_scope
-from .models import User
+from .models import DailyPulse, User
 
 
 def current_user(view):
@@ -48,5 +49,12 @@ def profile(user: User, session=None) -> dict:
         if user.xp < 600
         else "legend",
         "streak_days": user.streak_days,
-        "pulse_completed_today": False,
+        "pulse_completed_today": bool(
+            session
+            and session.scalar(
+                select(DailyPulse).where(
+                    DailyPulse.user_id == user.id, DailyPulse.pulse_date == date.today()
+                )
+            )
+        ),
     }
