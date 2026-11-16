@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: AI-buddy PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: avito
+    jsonData:
+      database: aibuddy
+      sslmode: disable
+      postgresVersion: 1600
+    secureJsonData:
+      password: avito
+    isDefault: true
+

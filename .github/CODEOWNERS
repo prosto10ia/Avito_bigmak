@@ -1,0 +1,9 @@
+/tech.md @team-lead
+/specs/ @team-lead
+/docker-compose.yml @team-lead
+/frontend/src/types/domain.ts @team-lead
+/frontend/src/api/client.ts @team-lead
+/frontend/src/components/ui/ @team-lead
+/backend/migrations/ @team-lead
+/backend/seed.py @team-lead
+

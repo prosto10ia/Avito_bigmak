@@ -1,0 +1,13 @@
+{
+  "title": "AI-buddy Demo Metrics",
+  "uid": "aibuddy-demo",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Onboarding Completion Rate", "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}, "targets": [{"rawSql": "SELECT COALESCE(AVG((status = 'done')::int), 0) * 100 AS value FROM user_node_progress", "format": "table"}]},
+    {"id": 2, "type": "stat", "title": "Support Deflection Rate (RAG vs Escalation)", "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}, "targets": [{"rawSql": "SELECT COALESCE(100.0 * SUM((event_name = 'rag_answer')::int) / NULLIF(SUM((event_name IN ('rag_answer','rag_escalation'))::int), 0), 0) AS value FROM clickstream_events", "format": "table"}]},
+    {"id": 3, "type": "stat", "title": "MCP Actions Executed", "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0}, "targets": [{"rawSql": "SELECT COUNT(*) AS value FROM service_requests WHERE status = 'completed'", "format": "table"}]},
+    {"id": 4, "type": "timeseries", "title": "Daily Pulse Mood & Blocker Distribution", "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4}, "targets": [{"rawSql": "SELECT pulse_date AS time, AVG(mood_score) AS mood FROM daily_pulses GROUP BY pulse_date ORDER BY pulse_date", "format": "time_series"}]}
+  ]
+}
+

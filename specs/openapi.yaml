@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: AI-buddy API
+  version: 1.0.0
+  description: Russian-language offline hackathon demo API with synthetic data.
+servers: [{url: /api/v1}]
+tags:
+  - {name: dashboard}
+  - {name: roadmap}
+  - {name: chat}
+  - {name: mcp}
+  - {name: calendar}
+  - {name: pulse}
+paths:
+  /dashboard: {get: {summary: Dashboard snapshot, responses: {'200': {description: Dashboard response}}}}
+  /auth/switch-role: {post: {summary: Switch demo role, responses: {'200': {description: User profile}, '403': {description: Invalid demo access}}}}
+  /roadmap: {get: {summary: Roadmap graph, responses: {'200': {description: Roadmap response}}}}
+  /roadmap/nodes/{node_id}/verify: {post: {summary: Verify onboarding artifact, parameters: [{name: node_id, in: path, required: true, schema: {type: string}}], responses: {'200': {description: Verification result}, '422': {description: Guardrail rejection}}}}
+  /chat/message: {post: {summary: RAG or proposed MCP action, responses: {'200': {description: Chat response}, '403': {description: Access denied}}}}
+  /mcp/execute: {post: {summary: Confirm a proposed action, responses: {'200': {description: MCP result}}}}
+  /calendar: {get: {summary: Calendar events, responses: {'200': {description: Calendar response}}}}
+  /calendar/summary: {post: {summary: Generate meeting summary, responses: {'200': {description: Summary}}}}
+  /pulse: {post: {summary: Submit daily pulse, responses: {'201': {description: Pulse saved}}}}
+  /telemetry: {post: {summary: Record clickstream event, responses: {'201': {description: Event recorded}}}}
+

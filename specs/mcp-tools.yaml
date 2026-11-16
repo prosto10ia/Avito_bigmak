@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: AI-buddy MCP tools
+  version: 1.0.0
+  description: Offline synthetic adapters for the Hack&Change 2026 demo.
+components:
+  schemas:
+    MCPToolResult:
+      type: object
+      required: [success, tool_name, status, message]
+      properties:
+        success: {type: boolean}
+        tool_name: {type: string}
+        status: {type: string, enum: [pending_confirmation, approved, rejected, completed]}
+        message: {type: string}
+        external_ticket_id: {type: [string, 'null']}
+        data: {type: object}
+    CreateAbsenceRequest:
+      type: object
+      required: [user_id, type, date_from, date_to, reason]
+      properties:
+        user_id: {type: string}
+        type: {type: string, enum: [day_off, vacation, sick_leave]}
+        date_from: {type: string, format: date}
+        date_to: {type: string, format: date}
+        reason: {type: string}
+    RequestServiceAccess:
+      type: object
+      required: [user_id, service_name, project_key, access_level]
+      properties:
+        user_id: {type: string}
+        service_name: {type: string, enum: [jira, confluence, stash, k8s_namespace]}
+        project_key: {type: string}
+        access_level: {type: string, enum: [read, write, admin]}
+    ScheduleCalendarMeeting:
+      type: object
+      required: [user_id, participant_id, title, datetime, duration_min, agenda]
+      properties:
+        user_id: {type: string}
+        participant_id: {type: string}
+        title: {type: string}
+        datetime: {type: string, format: date-time}
+        duration_min: {type: integer, minimum: 15, maximum: 240}
+        agenda: {type: string}
+    VerifyOnboardingTask:
+      type: object
+      required: [user_id, node_id, artifact_type, content]
+      properties:
+        user_id: {type: string}
+        node_id: {type: string}
+        artifact_type: {type: string, enum: [cli_log, screenshot, quiz_answers]}
+        content: {type: string}
+
