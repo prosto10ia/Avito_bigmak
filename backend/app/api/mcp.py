@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..auth import current_user
 from ..db import session_scope
-from ..mcp_server.server import execute
+from ..mcp_server.server import execute, scoped_idempotency_key
 from ..models import ServiceRequest, User
 from ..schemas import ExecuteMCPRequest
 
@@ -33,7 +33,10 @@ def mcp_execute():
             session.rollback()
             existing = session.scalar(
                 select(ServiceRequest).where(
-                    ServiceRequest.idempotency_key == payload.idempotency_key,
+                    ServiceRequest.idempotency_key
+                    == scoped_idempotency_key(
+                        payload.tool_name, g.user.id, payload.idempotency_key
+                    ),
                     ServiceRequest.user_id == g.user.id,
                     ServiceRequest.tool_name == payload.tool_name,
                 )

@@ -24,10 +24,28 @@ def stable_key(tool_name: str, user_id: str, payload: dict) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def scoped_idempotency_key(tool_name: str, user_id: str, key: str) -> str:
+    return hashlib.sha256(f"{tool_name}|{user_id}|{key}".encode()).hexdigest()
+
+
 def verify_onboarding_task(session, user, payload):
     node = session.get(RoadmapNode, payload.get("node_id"))
     if node is None:
         return {"success": False, "status": "rejected", "message": "Unknown node"}, 404
+    if node.target_role != user.role:
+        return {"error": "RBAC_ROLE_DENIED"}, 403
+    progress = session.scalar(
+        select(UserNodeProgress).where(
+            UserNodeProgress.user_id == user.id, UserNodeProgress.node_id == node.id
+        )
+    )
+    if progress is None or progress.status not in {"active", "waiting_approval", "done"}:
+        return {
+            "success": False,
+            "tool_name": "verify_onboarding_task",
+            "status": "rejected",
+            "message": "Node dependency is not complete",
+        }, 422
     if not validate_no_secrets(payload.get("content", "")):
         return {"error": "GUARDRAIL_SECRET_DETECTED"}, 422
     ok, message = validate_artifact(payload.get("artifact_type", ""), payload.get("content", ""))
@@ -89,6 +107,14 @@ def validate_tool_payload(tool_name: str, payload: dict):
         "k8s_namespace",
     }:
         return "INVALID_REQUEST"
+    if tool_name == "create_absence_request":
+        try:
+            date_from = datetime.fromisoformat(str(payload["date_from"])).date()
+            date_to = datetime.fromisoformat(str(payload["date_to"])).date()
+            if date_to < date_from:
+                return "INVALID_REQUEST"
+        except (TypeError, ValueError):
+            return "INVALID_REQUEST"
     if tool_name == "schedule_calendar_meeting":
         try:
             if not 15 <= int(payload["duration_min"]) <= 240:
@@ -100,13 +126,16 @@ def validate_tool_payload(tool_name: str, payload: dict):
 
 
 def execute(session, user, tool_name: str, payload: dict, key: str):
+    storage_key = scoped_idempotency_key(tool_name, user.id, key)
     if session.bind.dialect.name == "postgresql":
         session.execute(
             text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-            {"lock_key": f"mcp:{key}"},
+            {"lock_key": f"mcp:{storage_key}"},
         )
     existing = session.scalar(
-        select(ServiceRequest).where(ServiceRequest.idempotency_key == key).with_for_update()
+        select(ServiceRequest)
+        .where(ServiceRequest.idempotency_key == storage_key)
+        .with_for_update()
     )
     if existing:
         if existing.user_id != user.id or existing.tool_name != tool_name:
@@ -153,6 +182,8 @@ def execute(session, user, tool_name: str, payload: dict, key: str):
         )
         if access_node and access_node.node_type != "service_action":
             return {"error": "INVALID_REQUEST"}, 422
+        if access_node and access_node.target_role != user.role:
+            return {"error": "RBAC_ROLE_DENIED"}, 403
         if payload.get("node_id"):
             target_node_id = access_node.id if access_node else payload["node_id"]
             progress = session.scalar(
@@ -202,7 +233,7 @@ def execute(session, user, tool_name: str, payload: dict, key: str):
             id=request_id,
             user_id=user.id,
             tool_name=tool_name,
-            idempotency_key=key,
+            idempotency_key=storage_key,
             payload=result,
             status="completed",
         )
@@ -215,7 +246,7 @@ def execute(session, user, tool_name: str, payload: dict, key: str):
         id=request_id,
         user_id=user.id,
         tool_name=tool_name,
-        idempotency_key=key,
+        idempotency_key=storage_key,
         payload=result,
         status="completed",
         external_ticket_id=external,

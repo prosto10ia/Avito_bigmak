@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Dashboard from '../routes';
@@ -48,6 +48,33 @@ describe('dashboard', () => {
     );
     expect(screen.getByRole('status')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Войти в команду')).toBeInTheDocument());
+    vi.restoreAllMocks();
+  });
+
+  it('opens and submits Daily Pulse from the dashboard', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ status: 'recorded', xp_awarded: 15, streak_days: 4 }));
+      }
+      return new Response(JSON.stringify(data));
+    });
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Заполнить Daily Pulse/ })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Заполнить Daily Pulse/ }));
+    fireEvent.click(screen.getByRole('button', { name: '4' }));
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить чек-ин/ }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true),
+    );
     vi.restoreAllMocks();
   });
 });

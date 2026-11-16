@@ -16,7 +16,11 @@ def complete_node(session, user: User, node: RoadmapNode, artifact: str, feedbac
         .with_for_update()
     )
     if progress is None:
-        progress = UserNodeProgress(user_id=user.id, node_id=node.id, status="active")
+        progress = UserNodeProgress(
+            user_id=user.id,
+            node_id=node.id,
+            status="active" if node.depends_on_node_id is None else "locked",
+        )
         session.add(progress)
         session.flush()
     if progress.status == "locked":

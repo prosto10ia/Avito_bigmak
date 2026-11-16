@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createApiClient, roleLabel } from '../api/client';
 import { useAuthStore } from '../store/useAuthStore';
-import { MascotProgressHeader } from '../components/ui';
+import { DailyPulseModal, MascotProgressHeader } from '../components/ui';
 
 const api = createApiClient(() => ({
   userId: useAuthStore.getState().userId,
@@ -16,6 +16,22 @@ export default function Dashboard() {
   });
   const data = query.data;
   const setProfile = useAuthStore((s) => s.setProfile);
+  const queryClient = useQueryClient();
+  const [pulseOpen, setPulseOpen] = useState(false);
+  const pulse = useMutation({
+    mutationFn: api.submitPulse,
+    onSuccess: (result) => {
+      const current = useAuthStore.getState().profile;
+      setProfile({
+        ...current,
+        pulse_completed_today: true,
+        xp: current.xp + result.xp_awarded,
+        streak_days: result.streak_days ?? current.streak_days,
+      });
+      setPulseOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
   useEffect(() => {
     if (data?.profile) setProfile(data.profile);
   }, [data?.profile, setProfile]);
@@ -33,9 +49,30 @@ export default function Dashboard() {
       )}
       {data && (
         <>
-          <p className="muted">
-            {roleLabel(profile.role)}, {profile.full_name}
-          </p>
+          <section className="panel timeline-card">
+            <p className="muted">
+              {roleLabel(profile.role)}, {profile.full_name}
+            </p>
+            <h2>Привет, {profile.full_name.split(' ')[0]}!</h2>
+            <p className="muted">
+              {data.timeline?.label ?? 'Твой путь адаптации'} ·{' '}
+              {data.timeline
+                ? new Intl.DateTimeFormat('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    weekday: 'long',
+                  }).format(new Date(`${data.timeline.date}T12:00:00`))
+                : 'сегодня'}
+            </p>
+            <button
+              onClick={() => setPulseOpen(true)}
+              disabled={data.pulse.completed_today || profile.pulse_completed_today}
+            >
+              {data.pulse.completed_today || profile.pulse_completed_today
+                ? 'Daily Pulse заполнен'
+                : 'Заполнить Daily Pulse · +15 XP'}
+            </button>
+          </section>
           <MascotProgressHeader
             xp={data.mascot?.xp ?? data.profile.xp}
             level={data.mascot?.level ?? data.profile.level}
@@ -66,6 +103,14 @@ export default function Dashboard() {
             ))
           ) : (
             <div className="empty">Встреч пока нет — отличный момент для фокуса.</div>
+          )}
+          {pulseOpen && (
+            <DailyPulseModal
+              isOpen
+              onClose={() => setPulseOpen(false)}
+              onSubmit={(mood_score, blocker_tags) => pulse.mutate({ mood_score, blocker_tags })}
+              disabled={data.pulse.completed_today || profile.pulse_completed_today}
+            />
           )}
         </>
       )}

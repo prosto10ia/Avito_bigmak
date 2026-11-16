@@ -14,6 +14,9 @@ bp = Blueprint("dashboard", __name__)
 @current_user
 def dashboard():
     with session_scope() as session:
+        today = date.today()
+        start_date = g.user.created_at.date() if g.user.created_at else today
+        onboarding_day = max(1, (today - start_date).days + 1)
         nodes = session.execute(
             select(RoadmapNode, UserNodeProgress)
             .outerjoin(
@@ -44,6 +47,12 @@ def dashboard():
         return jsonify(
             {
                 "profile": data,
+                "timeline": {
+                    "date": today.isoformat(),
+                    "day": onboarding_day,
+                    "week": (onboarding_day - 1) // 7 + 1,
+                    "label": f"Неделя {(onboarding_day - 1) // 7 + 1}, день {onboarding_day}",
+                },
                 "mascot": {
                     "xp": g.user.xp,
                     "level": g.user.level,

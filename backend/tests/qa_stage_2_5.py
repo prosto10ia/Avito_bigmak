@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 
 from app.db import session_scope
 from app.models import CalendarEvent, ServiceRequest, User, UserNodeProgress
-from seed import seed
+from seed import NODES, seed
 
 ACCESS_CODE = "hack-and-change-2026"
 
@@ -244,4 +244,4 @@ def test_pulse_increments_consecutive_streak_and_is_persisted_once(client):
     )
     assert duplicate.status_code == 200
     assert duplicate.get_json()["xp_awarded"] == 0
-    assert count_rows(UserNodeProgress) == 14
+    assert count_rows(UserNodeProgress) == len(NODES)

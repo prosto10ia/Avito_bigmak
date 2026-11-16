@@ -101,6 +101,14 @@ export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;
 
 export const DashboardResponseSchema = z.object({
   profile: UserProfileSchema,
+  timeline: z
+    .object({
+      date: z.string(),
+      day: z.number(),
+      week: z.number(),
+      label: z.string(),
+    })
+    .optional(),
   mascot: z
     .object({
       xp: z.number(),

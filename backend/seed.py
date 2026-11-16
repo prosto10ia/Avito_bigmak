@@ -57,10 +57,20 @@ NODES = [
         "week_1",
         "Проверить avito-cli",
         "Запустить CLI и приложить лог.",
-        "service_action",
+        "guide",
         50,
         2,
         "node_w1_intro",
+    ),
+    (
+        "node_w1_access",
+        "week_1",
+        "Доступы к сервисам",
+        "Оформить минимально необходимые доступы в Jira и Stash.",
+        "service_action",
+        50,
+        3,
+        "node_w1_cli",
     ),
     (
         "node_w1_obs",
@@ -69,8 +79,8 @@ NODES = [
         "Ответить на вопросы по Grafana и Sentry.",
         "quiz",
         50,
-        3,
-        "node_w1_cli",
+        4,
+        "node_w1_access",
     ),
     (
         "node_m1_access",
@@ -79,7 +89,7 @@ NODES = [
         "Оформить минимально необходимые доступы.",
         "service_action",
         70,
-        4,
+        5,
         "node_w1_obs",
     ),
     (
@@ -89,7 +99,7 @@ NODES = [
         "Заполнить вечерний чек-ин.",
         "guide",
         40,
-        5,
+        6,
         "node_m1_access",
     ),
     (
@@ -99,7 +109,7 @@ NODES = [
         "Собрать результаты адаптации.",
         "quiz",
         100,
-        6,
+        7,
         "node_m2_pulse",
     ),
     (
@@ -109,7 +119,7 @@ NODES = [
         "Провести первое парное ревью.",
         "guide",
         40,
-        7,
+        8,
         "node_w1_intro",
     ),
     (
@@ -119,7 +129,7 @@ NODES = [
         "Ответить на вопросы о владельцах сервисов.",
         "quiz",
         40,
-        8,
+        9,
         "node_w2_pairing",
     ),
     (
@@ -129,7 +139,7 @@ NODES = [
         "Разобрать контур продукта с buddy.",
         "guide",
         60,
-        9,
+        10,
         "node_w1_obs",
     ),
     (
@@ -139,7 +149,7 @@ NODES = [
         "Собрать обратную связь за первый месяц.",
         "guide",
         40,
-        10,
+        11,
         "node_m1_access",
     ),
     (
@@ -149,7 +159,7 @@ NODES = [
         "Зафиксировать первый самостоятельный участок.",
         "service_action",
         70,
-        11,
+        12,
         "node_m2_pulse",
     ),
     (
@@ -159,7 +169,7 @@ NODES = [
         "Проверить сценарии поддержки.",
         "quiz",
         70,
-        12,
+        13,
         "node_m3_ownership",
     ),
     (
@@ -169,7 +179,7 @@ NODES = [
         "Подготовить короткое демо результата.",
         "guide",
         80,
-        13,
+        14,
         "node_m2_pulse",
     ),
     (
@@ -179,7 +189,7 @@ NODES = [
         "Сформулировать следующие шаги после Экватора.",
         "quiz",
         80,
-        14,
+        15,
         "node_equator_demo",
     ),
 ]
@@ -206,23 +216,35 @@ def seed() -> None:
             order_index,
             depends_on,
         ) in NODES:
-            if session.get(RoadmapNode, node_id) is None:
-                session.add(
-                    RoadmapNode(
-                        id=node_id,
-                        period=period,
-                        title=title,
-                        description=description,
-                        node_type=node_type,
-                        xp_reward=xp,
-                        order_index=order_index,
-                        target_role="intern",
-                        verification_config={},
-                        depends_on_node_id=depends_on,
-                    )
+            node = session.get(RoadmapNode, node_id)
+            if node is None:
+                node = RoadmapNode(
+                    id=node_id,
+                    period=period,
+                    title=title,
+                    description=description,
+                    node_type=node_type,
+                    xp_reward=xp,
+                    order_index=order_index,
+                    target_role="intern",
+                    verification_config={},
                 )
+                session.add(node)
+            node.period = period
+            node.title = title
+            node.description = description
+            node.node_type = node_type
+            node.xp_reward = xp
+            node.order_index = order_index
+            node.target_role = "intern"
+            node.verification_config = {}
+        session.flush()
+        for node_id, _, _, _, _, _, _, depends_on in NODES:
+            node = session.get(RoadmapNode, node_id)
+            node.depends_on_node_id = depends_on
         session.flush()
         for node_id, *_ in NODES:
+            node = session.get(RoadmapNode, node_id)
             exists = session.scalar(
                 select(UserNodeProgress).where(
                     UserNodeProgress.user_id == "usr_intern_1",
@@ -230,11 +252,32 @@ def seed() -> None:
                 )
             )
             if exists is None:
+                dependency = (
+                    session.get(RoadmapNode, node.depends_on_node_id)
+                    if node.depends_on_node_id
+                    else None
+                )
+                dependency_progress = (
+                    session.scalar(
+                        select(UserNodeProgress).where(
+                            UserNodeProgress.user_id == "usr_intern_1",
+                            UserNodeProgress.node_id == dependency.id,
+                        )
+                    )
+                    if dependency
+                    else None
+                )
                 session.add(
                     UserNodeProgress(
                         user_id="usr_intern_1",
                         node_id=node_id,
-                        status="active" if node_id == NODES[0][0] else "locked",
+                        status=(
+                            "active"
+                            if dependency is None
+                            or dependency_progress
+                            and dependency_progress.status == "done"
+                            else "locked"
+                        ),
                     )
                 )
         if session.get(CalendarEvent, "event_welcome_1") is None:

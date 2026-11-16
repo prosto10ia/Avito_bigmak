@@ -46,7 +46,12 @@ def proposed_action(user, message):
             "title": "Запросить доступ",
             "summary": "Создать синтетическую заявку на доступ к Jira.",
             "idempotency_key": stable_key("request_service_access", user.id, {"message": message}),
-            "payload": {"service_name": "jira", "project_key": "AUTO", "access_level": "read"},
+            "payload": {
+                "node_id": "node_w1_access",
+                "service_name": "jira",
+                "project_key": "AUTO",
+                "access_level": "read",
+            },
         }
     if any(x in lowered for x in ("встреч", "созвон", "календар")):
         return {

@@ -7,7 +7,7 @@ Stage 1–5 MVP implementation is present. Lead-owned SDD v1.0, Compose topology
 - [x] Stage 3 — RAG / conflicts / escalation (role/cluster filtering, citations, conflict warning and escalation)
 - [x] Stage 4 — MCP / confirmation (four simulated tools, confirmation, payload validation and user-scoped idempotency)
 - [x] Stage 5 — calendar / pulse / summaries (calendar aggregation, offline summary and once-per-day pulse)
-- [ ] Stage 6 — end-to-end / demo readiness (implementation and gate are green; independent review pending)
+- [ ] Stage 6 — end-to-end / demo readiness (implementation and gate are green; final independent review pending)
 
 For each checkpoint record: stage, tech.md version, commit, tests and exit codes, actual coverage, reviewer verdict/findings, unresolved decisions, next step. If interrupted, resume first unverified stage from current working tree; do not reset it.
 
@@ -23,16 +23,18 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 ## MVP evidence checkpoint
 
 - Backend: `pytest` 26 tests, 89% coverage; Ruff format/check pass.
-- Frontend: 9 Vitest tests, 94.63% configured coverage, format/lint/typecheck/build pass.
+- Frontend: 10 Vitest tests, 93.98% configured coverage, format/lint/typecheck/build pass.
 - Acceptance QA: roadmap/RAG/MCP/calendar/pulse QA scenarios pass after contract fixes.
-- Full gate previously passed with `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 bash scripts/check.sh`; after the current fixes, backend/frontend rebuild, service-action walkthrough, readiness probe, frontend checks, backend tests and 2 Playwright E2E pass. The default BuildKit path is available in this run; classic mode remains the documented fallback.
+- Full gate passed with `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 bash scripts/check.sh` after the current fixes: backend/frontend rebuild, healthchecks, frontend checks/10 tests/build, backend 26 tests/88.94% coverage and 2 Playwright E2E.
 
 ## Current MVP fixes
 
 - `/health` probes PostgreSQL and Redis and returns `503` when dependencies are unavailable; tests skip Redis only for isolated SQLite unit apps.
 - MCP validates the complete payload for secrets before side effects, restricts service names, scopes idempotency to user/tool and uses PostgreSQL advisory locks for concurrent first calls.
-- Service-action confirmation carries the selected roadmap node and only completes an active/waiting-approval service node; Daily Pulse uses the same concurrency protection.
+- Service-action confirmation carries the selected roadmap node and only completes an active/waiting-approval service node (retries of an already done node are idempotent); Daily Pulse uses the same concurrency protection.
 - Profile data is hydrated from the backend when the profile tab opens; seed includes one-on-one, team sync, deadline and equator events.
+- The canonical week-one route now contains `node_w1_cli` (CLI guide) followed by `node_w1_access` (MCP service action); roadmap verification enforces role ownership and dependency status.
+- Dashboard now renders greeting/date/timeline and opens Daily Pulse directly; MCP absence requests validate ISO dates and idempotency storage is scoped by user and tool.
 
 ## Unresolved contract gaps
 
