@@ -18,34 +18,35 @@ export default function Profile() {
     if (query.data?.profile) switchRole(query.data.profile);
   }, [query.data?.profile, switchRole]);
   const mutation = useMutation({ mutationFn: api.switchRole, onSuccess: switchRole });
+  const dashboardProfile = query.data?.profile ?? profile;
   return (
     <div className="page">
       <span className="eyebrow">Демо-панель жюри</span>
       <h2>Профиль</h2>
       <section className="panel profile-card">
-        <div className="profile-avatar">{profile.full_name.slice(0, 1)}</div>
-        <h3>{profile.full_name}</h3>
-        <p className="muted">{profile.job_title}</p>
+        <div className="profile-avatar">{dashboardProfile.full_name.slice(0, 1)}</div>
+        <h3>{dashboardProfile.full_name}</h3>
+        <p className="muted">{dashboardProfile.job_title}</p>
         <div className="profile-grid">
           <div>
             <span>Роль</span>
-            <strong>{roleLabel(profile.role)}</strong>
+            <strong>{roleLabel(dashboardProfile.role)}</strong>
           </div>
           <div>
             <span>Команда</span>
-            <strong>{profile.team}</strong>
+            <strong>{dashboardProfile.team}</strong>
           </div>
           <div>
             <span>Кластер</span>
-            <strong>{profile.cluster}</strong>
+            <strong>{dashboardProfile.cluster}</strong>
           </div>
           <div>
             <span>Наставник</span>
-            <strong>{profile.mentor_name}</strong>
+            <strong>{dashboardProfile.mentor_name}</strong>
           </div>
           <div>
             <span>Руководитель</span>
-            <strong>{profile.manager_name}</strong>
+            <strong>{dashboardProfile.manager_name}</strong>
           </div>
           <div>
             <span>Доступ</span>
@@ -53,12 +54,61 @@ export default function Profile() {
           </div>
         </div>
       </section>
+      {query.isLoading && (
+        <div className="empty" role="status">
+          Загружаем прогресс и награды…
+        </div>
+      )}
+      {query.isError && (
+        <div className="error" role="alert">
+          Не удалось загрузить детали прогресса. Показаны данные текущего профиля.
+        </div>
+      )}
+      <details className="panel">
+        <summary>Показать прогресс и награды</summary>
+        <div className="profile-grid">
+          <div>
+            <span>Уровень</span>
+            <strong>{dashboardProfile.level}</strong>
+          </div>
+          <div>
+            <span>Опыт</span>
+            <strong>{dashboardProfile.xp} XP</strong>
+          </div>
+          <div>
+            <span>Маскот</span>
+            <strong>{dashboardProfile.mascot_stage}</strong>
+          </div>
+          <div>
+            <span>Серия</span>
+            <strong>{dashboardProfile.streak_days} дн.</strong>
+          </div>
+          <div>
+            <span>Daily Pulse</span>
+            <strong>
+              {dashboardProfile.pulse_completed_today ? 'Заполнен сегодня' : 'Ещё не заполнен'}
+            </strong>
+          </div>
+        </div>
+        {query.data?.active_nodes.length ? (
+          <div>
+            <p className="muted">Ближайшие награды</p>
+            {query.data.active_nodes.map((node) => (
+              <p key={node.id}>
+                {node.title} · +{node.xp_reward} XP
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Активных наград пока нет.</p>
+        )}
+      </details>
       <div className="section-head">
         <h3>Переключение роли</h3>
         <span className="muted">одно нажатие</span>
       </div>
       <RoleSwitcherBadge
-        currentRole={profile.role}
+        currentRole={dashboardProfile.role}
         onSwitchRole={(role) => mutation.mutate(role)}
       />
       {mutation.isPending && (

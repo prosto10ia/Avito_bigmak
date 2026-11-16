@@ -19,32 +19,49 @@ const chips = [
 export default function Chat() {
   const [text, setText] = useState('');
   const [localError, setLocalError] = useState('');
-  const [messages, setMessages] = useState<ChatResponse[]>([]);
+  const [messages, setMessages] = useState<
+    Array<{ kind: 'user'; text: string } | { kind: 'assistant'; response: ChatResponse }>
+  >([]);
   const [actionResult, setActionResult] = useState<Record<string, string>>({});
+  const [cancelledActions, setCancelledActions] = useState<Record<string, boolean>>({});
+  const [copiedAnswer, setCopiedAnswer] = useState<number | null>(null);
   const chat = useMutation({
     mutationFn: api.chatMessage,
     onSuccess: (response) => {
-      setMessages((current) => [...current, response]);
+      setMessages((current) => [...current, { kind: 'assistant', response }]);
       setText('');
     },
   });
   const execute = useMutation({
     mutationFn: api.executeMcp,
-    onSuccess: (response, variables) =>
-      setActionResult((current) => ({
-        ...current,
-        [variables.idempotency_key]:
-          response.external_ticket_id ?? response.ticket_id ?? 'подтверждено',
-      })),
+    onSuccess: (response, variables) => {
+      const ticket = response.external_ticket_id ?? response.ticket_id;
+      if (!ticket) {
+        setLocalError('Сервис не вернул номер заявки; действие не подтверждено.');
+        return;
+      }
+      setActionResult((current) => ({ ...current, [variables.idempotency_key]: ticket }));
+    },
   });
   const send = (message = text) => {
-    if (!message.trim()) return;
-    if (inspectForSecrets(message).blocked) {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || chat.isPending) return;
+    if (inspectForSecrets(trimmedMessage).blocked) {
       setLocalError('Сообщение заблокировано локально: обнаружен приватный ключ или секрет.');
       return;
     }
     setLocalError('');
-    chat.mutate(message);
+    setMessages((current) => [...current, { kind: 'user', text: trimmedMessage }]);
+    chat.mutate(trimmedMessage);
+  };
+  const copyAnswer = async (answer: string, index: number) => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(answer);
+      setCopiedAnswer(index);
+    } catch {
+      setLocalError('Не удалось скопировать ответ. Выдели текст вручную.');
+    }
   };
   return (
     <div className="page">
@@ -64,42 +81,90 @@ export default function Chat() {
           </button>
         ))}
       </div>
-      <div className="chat-list">
+      <div className="chat-list" aria-live="polite">
         {messages.length === 0 && (
           <div className="empty">Спроси про адаптацию, документы или заявку в сервис.</div>
         )}
-        {messages.map((message, index) => (
-          <article className="chat-message" key={`${message.reply}-${index}`}>
-            {message.conflict_warning && (
-              <ConflictWarningBanner conflict={message.conflict_warning} />
-            )}
-            <p>{message.reply}</p>
-            <div>
-              {message.sources.map((source) => (
-                <SourceLinkChip key={source.id} source={source} />
-              ))}
-            </div>
-            {message.escalation && <EscalationCard escalation={message.escalation} />}
-            {message.proposed_mcp_action && (
-              <ActionRequestWidget
-                action={message.proposed_mcp_action}
-                onCancel={() => undefined}
-                isLoading={execute.isPending}
-                resultTicket={actionResult[message.proposed_mcp_action.idempotency_key]}
-                onConfirm={() => execute.mutate(message.proposed_mcp_action)}
-              />
-            )}
-          </article>
-        ))}
+        {messages.map((message, index) =>
+          message.kind === 'user' ? (
+            <article className="chat-message user-message" key={`user-${index}`}>
+              <p>{message.text}</p>
+            </article>
+          ) : (
+            <article className="chat-message" key={`assistant-${index}`}>
+              {message.response.conflict_warning && (
+                <ConflictWarningBanner conflict={message.response.conflict_warning} />
+              )}
+              <p>{message.response.reply}</p>
+              <div className="actions">
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={() => void copyAnswer(message.response.reply, index)}
+                  aria-label="Скопировать ответ помощника"
+                >
+                  {copiedAnswer === index ? 'Ответ скопирован' : 'Скопировать ответ'}
+                </button>
+              </div>
+              <div>
+                {message.response.sources.map((source) => (
+                  <span key={source.id}>
+                    <SourceLinkChip source={source} />
+                    {typeof source.content === 'string' && source.content.trim() && (
+                      <details className="source-preview">
+                        <summary>Показать фрагмент синтетического демодокумента</summary>
+                        <p>{source.content}</p>
+                      </details>
+                    )}
+                  </span>
+                ))}
+              </div>
+              {message.response.escalation && (
+                <EscalationCard escalation={message.response.escalation} />
+              )}
+              {message.response.proposed_mcp_action &&
+                (cancelledActions[message.response.proposed_mcp_action.idempotency_key] ? (
+                  <div className="empty" role="status">
+                    Действие отменено. Никаких изменений не выполнено.
+                  </div>
+                ) : (
+                  <ActionRequestWidget
+                    action={message.response.proposed_mcp_action}
+                    onCancel={() =>
+                      setCancelledActions((current) => ({
+                        ...current,
+                        [message.response.proposed_mcp_action!.idempotency_key]: true,
+                      }))
+                    }
+                    isLoading={execute.isPending}
+                    resultTicket={
+                      actionResult[message.response.proposed_mcp_action.idempotency_key]
+                    }
+                    onConfirm={() => {
+                      setLocalError('');
+                      execute.mutate(message.response.proposed_mcp_action!);
+                    }}
+                  />
+                ))}
+            </article>
+          ),
+        )}
+        {chat.isPending && (
+          <div className="empty" role="status">
+            Помощник готовит ответ…
+          </div>
+        )}
       </div>
-      {(localError || chat.error) && (
+      {(localError || chat.error || execute.error) && (
         <div className="error" role="alert">
           {localError ||
             (chat.error instanceof ApiError && chat.error.status === 403
               ? 'Доступ ограничен политикой RBAC/ABAC для роли стажёра.'
               : chat.error instanceof ApiError && chat.error.status === 422
                 ? 'Сообщение заблокировано: обнаружен секрет.'
-                : 'Не удалось получить ответ. Попробуй ещё раз.')}
+                : execute.error
+                  ? 'Не удалось подтвердить действие. Ничего не изменено, попробуй ещё раз.'
+                  : 'Не удалось получить ответ. Попробуй ещё раз.')}
         </div>
       )}
       <form

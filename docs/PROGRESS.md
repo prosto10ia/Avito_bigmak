@@ -8,6 +8,7 @@ Stage 1–5 MVP implementation is present. Lead-owned SDD v1.0, Compose topology
 - [x] Stage 4 — MCP / confirmation (four simulated tools, confirmation, payload validation and user-scoped idempotency)
 - [x] Stage 5 — calendar / pulse / summaries (calendar aggregation, offline summary and once-per-day pulse)
 - [x] Stage 6 — end-to-end / demo readiness (MVP path and mandatory quality gate are green; remaining items are P2)
+- [x] Stage 7 — Interactive UI Polish (five-screen interaction audit, clickable flows, feedback states and regression coverage)
 
 For each checkpoint record: stage, tech.md version, commit, tests and exit codes, actual coverage, reviewer verdict/findings, unresolved decisions, next step. If interrupted, resume first unverified stage from current working tree; do not reset it.
 
@@ -18,14 +19,29 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - [x] `/health`, dashboard, role switch and telemetry persist/validate state; auth mismatch and bad demo code are rejected.
 - [x] Frontend five-tab browser fallback, role switch and dashboard render with typed client/UI primitives.
 - [x] Frontend/backend format, lint, typecheck, tests, coverage >80%, production build; Playwright image is pinned to the matching 1.65.1 browser runtime.
-- [ ] Final independent reviewer PASS on the last micro-diff (review was run and its P1 findings were fixed; the requested audit paused the rerun).
+- [x] Final independent reviewer PASS on the last micro-diff; P0/P1 absent, P2 items are listed in the Stage 7 backlog.
 
 ## MVP evidence checkpoint
 
-- Backend: `pytest` 27 tests, 89.47% coverage; Ruff format/check pass.
+- Backend: `pytest` 29 tests, 88.77% coverage; Ruff format/check pass.
 - Frontend: 10 Vitest tests, 93.98% configured coverage, format/lint/typecheck/build pass.
 - Acceptance QA: roadmap/RAG/MCP/calendar/pulse QA scenarios pass after contract fixes.
-- Full gate passed with `DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 bash scripts/check.sh` after the current fixes: backend/frontend rebuild, healthchecks, frontend checks/10 tests/build, backend 27 tests/89.47% coverage and 2 Playwright E2E.
+- Full gate passed with `bash scripts/check.sh` after the current fixes: backend/frontend rebuild, healthchecks, frontend checks/16 tests/build, backend 29 tests/88.77% coverage and 4 Playwright E2E.
+
+## Stage 7 — Interactive UI Polish checkpoint
+
+- Scope completed: dashboard task/meeting/progress cards and quick links; roadmap node detail states and deep links; chat user messages, local synthetic-source preview, copy/cancel/loading/error/success states; calendar month/day navigation, today reset, date filtering and event details; profile progress/reward details and role-switch feedback.
+- Regression evidence: `bash scripts/check.sh` passed; frontend 16 Vitest tests with 97.32% configured coverage, backend 29 pytest tests with 88.77% coverage, production build and 4 Playwright E2E tests passed.
+- Security follow-up: side-effect MCP tools now require a chat-persisted proposal bound to user, tool, idempotency key and exact payload; exact confirmed replay remains idempotent. Roadmap service actions use that proposal flow, with the active service-action node selected server-side; onboarding verification is exposed only through the protected roadmap endpoint. Added `backend/tests/test_mcp_proposal_binding.py` and updated affected contract tests.
+- Current commit: will be recorded in the follow-up documentation commit. `.DS_Store` remains an unrelated user change and is not staged.
+
+### Deferred P2 backlog
+
+- Extend frontend coverage collection to all newly changed routes/components.
+- Add Escape/focus management to calendar and meeting detail dialogs.
+- Tighten the MCP success response schema and revisit Redis caching/pgvector ranking after the demo path.
+- Make chat proposal creation atomic under concurrent identical requests (`ServiceRequest` unique-key race).
+- Split the protected roadmap verification type from the public proposed-action type in frontend schemas.
 
 ## Current MVP fixes
 
@@ -45,4 +61,4 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - Synthetic demo documents, service adapters and credentials remain explicitly non-production by contract.
 - Redis is provisioned and healthy for the demo, but the current MVP RAG path uses deterministic local retrieval; Redis caching and pgvector ranking remain post-MVP hardening work.
 - The Playwright dependency reports npm audit findings in the demo toolchain; dependency upgrades are deferred until after the MVP path is stable.
-- Final reviewer rerun for the last small contract/test adjustments is pending because development was paused for the requested audit; no P0/P1 product blocker remains in the latest passing gate.
+- Final reviewer PASS: no P0/P1 product blocker remains; P2 backlog is intentionally deferred after the 30-minute MVP-focused scope.

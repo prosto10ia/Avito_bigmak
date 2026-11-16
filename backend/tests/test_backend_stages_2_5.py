@@ -92,17 +92,10 @@ def test_rag_collision_and_negative_access(client):
 
 
 def test_mcp_confirmation_idempotency_and_security(client):
-    request_body = {
-        "tool_name": "create_absence_request",
-        "idempotency_key": "absence-key-1",
-        "confirmed": True,
-        "payload": {
-            "type": "day_off",
-            "date_from": "2026-11-20",
-            "date_to": "2026-11-20",
-            "reason": "demo",
-        },
-    }
+    action = client.post(
+        "/api/v1/chat/message", headers=headers(), json={"message": "Оформи отгул"}
+    ).get_json()["proposed_mcp_action"]
+    request_body = {**action, "confirmed": True}
     first = client.post("/api/v1/mcp/execute", headers=headers(), json=request_body)
     second = client.post("/api/v1/mcp/execute", headers=headers(), json=request_body)
     assert first.status_code == second.status_code == 200
@@ -114,7 +107,7 @@ def test_mcp_confirmation_idempotency_and_security(client):
         idempotency_key="admin-key",
         payload={"service_name": "jira", "project_key": "AUTO", "access_level": "admin"},
     )
-    assert client.post("/api/v1/mcp/execute", headers=headers(), json=forbidden).status_code == 403
+    assert client.post("/api/v1/mcp/execute", headers=headers(), json=forbidden).status_code == 422
     assert (
         client.post(
             "/api/v1/mcp/execute", headers=headers(), json=dict(request_body, confirmed=False)
@@ -156,7 +149,8 @@ def test_claimed_payload_identity_does_not_cross_user(client):
             },
         },
     )
-    assert response.status_code == 403
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "PROPOSAL_REQUIRED"
     with session_scope() as session:
         user = session.get(User, "usr_intern_1")
         assert user is not None

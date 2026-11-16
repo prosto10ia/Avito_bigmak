@@ -39,7 +39,6 @@ class ExecuteMCPRequest(BaseModel):
         "create_absence_request",
         "request_service_access",
         "schedule_calendar_meeting",
-        "verify_onboarding_task",
     ]
     payload: dict[str, Any] = Field(default_factory=dict)
     idempotency_key: str = Field(min_length=1, max_length=128)

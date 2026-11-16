@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..auth import current_user
 from ..db import session_scope
-from ..mcp_server.server import execute, scoped_idempotency_key
+from ..mcp_server.server import execute, proposal_storage_key, scoped_idempotency_key
 from ..models import ServiceRequest, User
 from ..schemas import ExecuteMCPRequest
 
@@ -21,6 +21,33 @@ def mcp_execute():
     if not payload.confirmed:
         return jsonify({"error": "CONFIRMATION_REQUIRED"}), 422
     with session_scope() as session:
+        final_key = scoped_idempotency_key(payload.tool_name, g.user.id, payload.idempotency_key)
+        existing = session.scalar(
+            select(ServiceRequest).where(
+                ServiceRequest.idempotency_key == final_key,
+                ServiceRequest.user_id == g.user.id,
+                ServiceRequest.tool_name == payload.tool_name,
+            )
+        )
+        proposal = None
+        if payload.tool_name in {
+            "create_absence_request",
+            "request_service_access",
+            "schedule_calendar_meeting",
+        }:
+            proposal = session.scalar(
+                select(ServiceRequest)
+                .where(
+                    ServiceRequest.idempotency_key
+                    == proposal_storage_key(payload.tool_name, g.user.id, payload.idempotency_key),
+                    ServiceRequest.user_id == g.user.id,
+                    ServiceRequest.tool_name == payload.tool_name,
+                    ServiceRequest.status.in_({"pending_confirmation", "completed"}),
+                )
+                .with_for_update()
+            )
+            if proposal is None or proposal.payload.get("payload") != payload.payload:
+                return jsonify({"error": "PROPOSAL_REQUIRED"}), 422
         try:
             result, status = execute(
                 session,
@@ -44,4 +71,6 @@ def mcp_execute():
             if existing is None:
                 return jsonify({"error": "IDEMPOTENCY_CONFLICT"}), 409
             result, status = existing.payload, 200
+        if proposal is not None and status == 200:
+            proposal.status = "completed"
         return jsonify(result), status

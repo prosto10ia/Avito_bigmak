@@ -4,6 +4,15 @@ import { z } from 'zod';
 type Escalation = z.infer<typeof EscalationSuggestionSchema>;
 export function EscalationCard({ escalation }: { escalation: Escalation }) {
   const [copied, setCopied] = useState(false);
+  const copyDraft = async () => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(escalation.draft_message);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
   return (
     <aside className="panel escalation-card">
       <strong>Нужна помощь наставника</strong>
@@ -12,10 +21,9 @@ export function EscalationCard({ escalation }: { escalation: Escalation }) {
       <div className="actions">
         <button
           className="secondary"
-          onClick={() => {
-            void navigator.clipboard?.writeText(escalation.draft_message);
-            setCopied(true);
-          }}
+          type="button"
+          onClick={() => void copyDraft()}
+          aria-label="Скопировать черновик сообщения для эскалации"
         >
           {copied ? 'Скопировано' : 'Скопировать черновик'}
         </button>

@@ -14,15 +14,38 @@ const eventLabels: Record<string, string> = {
   team_sync: 'Синк команды',
   equator_defense: 'Экватор',
 };
+
+const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+function eventDateKey(startsAt: string) {
+  const date = new Date(startsAt);
+  return Number.isNaN(date.getTime()) ? null : dateKey(date);
+}
+
+function formatMonth(date: Date) {
+  return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(date);
+}
+
 export default function Calendar() {
   const profile = useAuthStore((state) => state.profile);
   const setProfile = useAuthStore((state) => state.setProfile);
   const queryClient = useQueryClient();
   const [pulseOpen, setPulseOpen] = useState(false);
   const [summary, setSummary] = useState('');
-  const [month] = useState(new Date());
+  const [month, setMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const query = useQuery({ queryKey: ['calendar', profile.id], queryFn: api.calendar });
-  const events = (query.data?.events ?? []) as CalendarEvent[];
+  const events = useMemo(() => (query.data?.events ?? []) as CalendarEvent[], [query.data?.events]);
   const summaryMutation = useMutation({
     mutationFn: api.calendarSummary,
     onSuccess: (data) => setSummary(data.summary || data.report || ''),
@@ -43,13 +66,36 @@ export default function Calendar() {
   const days = useMemo(() => {
     const year = month.getFullYear();
     const m = month.getMonth();
-    const first = new Date(year, m, 1).getDay() || 7;
-    return Array.from({ length: new Date(year, m + 1, 0).getDate() + first - 1 }, (_, i) =>
-      i < first - 1 ? null : i - first + 2,
-    );
+    const firstWeekday = new Date(year, m, 1).getDay() || 7;
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    return Array.from({ length: daysInMonth + firstWeekday - 1 }, (_, index) => {
+      if (index < firstWeekday - 1) return null;
+      return new Date(year, m, index - firstWeekday + 2);
+    });
   }, [month]);
-  const eventCount = (day: number) =>
-    events.filter((event) => new Date(event.starts_at).getDate() === day).length;
+  const monthEvents = useMemo(
+    () =>
+      events.filter((event) =>
+        eventDateKey(event.starts_at)?.startsWith(
+          `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-`,
+        ),
+      ),
+    [events, month],
+  );
+  const eventCount = (day: Date) =>
+    monthEvents.filter((event) => eventDateKey(event.starts_at) === dateKey(day)).length;
+  const visibleEvents = selectedDay
+    ? events.filter((event) => eventDateKey(event.starts_at) === selectedDay)
+    : monthEvents;
+  const goToMonth = (offset: number) => {
+    setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    setSelectedDay(null);
+  };
+  const goToToday = () => {
+    const today = new Date();
+    setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDay(dateKey(today));
+  };
   return (
     <div className="page">
       <div className="section-head">
@@ -68,40 +114,78 @@ export default function Calendar() {
       )}
       {query.isError && (
         <div className="error" role="alert">
-          Не удалось загрузить календарь.
+          Не удалось загрузить календарь.{' '}
+          <button className="secondary" onClick={() => query.refetch()}>
+            Повторить
+          </button>
         </div>
       )}
-      <section className="calendar-grid" aria-label="Календарь месяца">
-        {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => (
+      <section aria-label="Управление месяцем" className="section-head">
+        <button aria-label="Предыдущий месяц" onClick={() => goToMonth(-1)}>
+          ←
+        </button>
+        <h3 aria-live="polite">{formatMonth(month)}</h3>
+        <div>
+          <button className="secondary" onClick={goToToday}>
+            Сегодня
+          </button>{' '}
+          <button aria-label="Следующий месяц" onClick={() => goToMonth(1)}>
+            →
+          </button>
+        </div>
+      </section>
+      <section className="calendar-grid" aria-label={`Календарь: ${formatMonth(month)}`}>
+        {weekdays.map((day) => (
           <strong key={day}>{day}</strong>
         ))}
         {days.map((day, index) => (
-          <div className="calendar-day" key={`${day}-${index}`}>
+          <button
+            className={`calendar-day${day && selectedDay === dateKey(day) ? ' selected' : ''}`}
+            key={day ? dateKey(day) : `empty-${index}`}
+            disabled={!day}
+            aria-label={day ? `${day.getDate()} ${formatMonth(day)}` : undefined}
+            aria-pressed={day ? selectedDay === dateKey(day) : undefined}
+            onClick={() => day && setSelectedDay(dateKey(day))}
+          >
             {day && (
               <>
-                <span>{day}</span>
-                {eventCount(day) > 0 && <b>{eventCount(day)}</b>}
+                <span>{day.getDate()}</span>
+                {eventCount(day) > 0 && (
+                  <b aria-label={`Событий: ${eventCount(day)}`}>{eventCount(day)}</b>
+                )}
               </>
             )}
-          </div>
+          </button>
         ))}
       </section>
       <div className="section-head">
         <h3>Список событий</h3>
-        <span className="muted">{events.length}</span>
+        <span className="muted">{visibleEvents.length}</span>
       </div>
-      {events.length ? (
-        events.map((event) => (
-          <div className={`event event-${event.event_type}`} key={event.id}>
+      {selectedDay && (
+        <button className="secondary" onClick={() => setSelectedDay(null)}>
+          Показать весь месяц
+        </button>
+      )}
+      {visibleEvents.length ? (
+        visibleEvents.map((event) => (
+          <button
+            className={`event event-${event.event_type}`}
+            key={event.id}
+            onClick={() => setSelectedEvent(event)}
+            aria-label={`Открыть событие: ${event.title}`}
+          >
             <strong>{event.title}</strong>
             <div className="muted">
               {eventLabels[event.event_type] ?? event.event_type} ·{' '}
               {new Date(event.starts_at).toLocaleString('ru-RU')}
             </div>
-          </div>
+          </button>
         ))
       ) : (
-        <div className="empty">Событий пока нет.</div>
+        <div className="empty">
+          {selectedDay ? 'На выбранный день событий нет.' : 'В этом месяце событий пока нет.'}
+        </div>
       )}
       <div className="summary-actions">
         <button
@@ -123,6 +207,38 @@ export default function Calendar() {
           <h3>AI-конспект</h3>
           <pre>{summary}</pre>
         </article>
+      )}
+      {summaryMutation.isError && (
+        <div className="error" role="alert">
+          Не удалось собрать саммари. Попробуйте ещё раз.
+        </div>
+      )}
+      {pulse.isError && (
+        <div className="error" role="alert">
+          Не удалось сохранить Daily Pulse. Попробуйте ещё раз.
+        </div>
+      )}
+      {selectedEvent && (
+        <div className="modal-backdrop" onClick={() => setSelectedEvent(null)}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-event-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="close" onClick={() => setSelectedEvent(null)} aria-label="Закрыть">
+              ×
+            </button>
+            <p className="eyebrow">
+              {eventLabels[selectedEvent.event_type] ?? selectedEvent.event_type}
+            </p>
+            <h2 id="calendar-event-title">{selectedEvent.title}</h2>
+            <p>{new Date(selectedEvent.starts_at).toLocaleString('ru-RU')}</p>
+            <p className="muted">Продолжительность: {selectedEvent.duration_min} мин.</p>
+            {selectedEvent.agenda && <p>{selectedEvent.agenda}</p>}
+          </section>
+        </div>
       )}
       {pulseOpen && (
         <DailyPulseModal

@@ -94,50 +94,43 @@ def test_chat_action_is_only_a_proposal_until_explicit_confirmation(client):
 
     assert response.status_code == 200
     assert response.get_json()["proposed_mcp_action"]["tool_name"] == "schedule_calendar_meeting"
-    assert count_rows(ServiceRequest) == before_requests
+    assert count_rows(ServiceRequest) == before_requests + 1
     assert count_rows(CalendarEvent) == before_events
 
 
 def test_each_service_tool_persists_its_side_effect_and_is_replayable(client):
-    absence = {
-        "tool_name": "create_absence_request",
-        "idempotency_key": "qa-absence-1",
-        "confirmed": True,
-        "payload": {
-            "type": "day_off",
-            "date_from": "2026-11-20",
-            "date_to": "2026-11-20",
-            "reason": "demo",
-        },
-    }
+    absence_action = client.post(
+        "/api/v1/chat/message", headers=headers(), json={"message": "Оформи отгул"}
+    ).get_json()["proposed_mcp_action"]
+    absence = {**absence_action, "confirmed": True}
     first_absence = client.post("/api/v1/mcp/execute", headers=headers(), json=absence)
     replay_absence = client.post("/api/v1/mcp/execute", headers=headers(), json=absence)
     assert first_absence.status_code == replay_absence.status_code == 200
     assert replay_absence.get_json() == first_absence.get_json()
     assert first_absence.get_json()["external_ticket_id"].startswith("ABS-")
 
-    access = {
-        "tool_name": "request_service_access",
-        "idempotency_key": "qa-access-1",
-        "confirmed": True,
-        "payload": {"service_name": "jira", "project_key": "AUTO", "access_level": "read"},
-    }
+    client.post(
+        "/api/v1/roadmap/nodes/node_w1_intro/verify",
+        headers=headers(),
+        json={"artifact_type": "cli_log", "content": "avito-cli: OK"},
+    )
+    client.post(
+        "/api/v1/roadmap/nodes/node_w1_cli/verify",
+        headers=headers(),
+        json={"artifact_type": "cli_log", "content": "avito-cli: OK"},
+    )
+    access_action = client.post(
+        "/api/v1/chat/message", headers=headers(), json={"message": "Запроси доступ к jira"}
+    ).get_json()["proposed_mcp_action"]
+    access = {**access_action, "confirmed": True}
     access_response = client.post("/api/v1/mcp/execute", headers=headers(), json=access)
     assert access_response.status_code == 200
     assert access_response.get_json()["external_ticket_id"].startswith("ACC-")
 
-    meeting = {
-        "tool_name": "schedule_calendar_meeting",
-        "idempotency_key": "qa-meeting-1",
-        "confirmed": True,
-        "payload": {
-            "participant_id": "usr_buddy_1",
-            "title": "QA 1:1",
-            "datetime": "2026-11-25T10:00:00+00:00",
-            "duration_min": 30,
-            "agenda": "Acceptance review",
-        },
-    }
+    meeting_action = client.post(
+        "/api/v1/chat/message", headers=headers(), json={"message": "Назначь встречу с buddy"}
+    ).get_json()["proposed_mcp_action"]
+    meeting = {**meeting_action, "confirmed": True}
     meeting_response = client.post("/api/v1/mcp/execute", headers=headers(), json=meeting)
     assert meeting_response.status_code == 200
     event_id = meeting_response.get_json()["data"]["id"]
@@ -171,36 +164,32 @@ def test_mcp_rejects_unconfirmed_and_intern_admin_or_foreign_access(client):
 
     payload["confirmed"] = True
     admin = client.post("/api/v1/mcp/execute", headers=headers(), json=payload)
-    assert admin.status_code == 403
-    assert admin.get_json()["error"] == "RBAC_ROLE_DENIED"
+    assert admin.status_code == 422
+    assert admin.get_json()["error"] == "PROPOSAL_REQUIRED"
 
     payload.update(
         idempotency_key="qa-denied-foreign",
         payload={"service_name": "jira", "project_key": "FIN-123", "access_level": "read"},
     )
     foreign = client.post("/api/v1/mcp/execute", headers=headers(), json=payload)
-    assert foreign.status_code == 403
-    assert foreign.get_json()["error"] == "ABAC_CLUSTER_DENIED"
+    assert foreign.status_code == 422
+    assert foreign.get_json()["error"] == "PROPOSAL_REQUIRED"
 
 
 def test_verify_mcp_contract_and_guardrail(client):
-    verify = {
-        "tool_name": "verify_onboarding_task",
-        "idempotency_key": "qa-verify-1",
-        "confirmed": True,
-        "payload": {
-            "node_id": "node_w1_intro",
-            "artifact_type": "cli_log",
-            "content": "avito-cli: OK",
-        },
-    }
-    response = client.post("/api/v1/mcp/execute", headers=headers(), json=verify)
+    response = client.post(
+        "/api/v1/roadmap/nodes/node_w1_intro/verify",
+        headers=headers(),
+        json={"artifact_type": "cli_log", "content": "avito-cli: OK"},
+    )
     assert response.status_code == 200
     assert response.get_json()["status"] == "done"
 
-    verify["idempotency_key"] = "qa-verify-secret"
-    verify["payload"]["content"] = "-----BEGIN OPENSSH PRIVATE KEY-----"
-    blocked = client.post("/api/v1/mcp/execute", headers=headers(), json=verify)
+    blocked = client.post(
+        "/api/v1/roadmap/nodes/node_w1_cli/verify",
+        headers=headers(),
+        json={"artifact_type": "cli_log", "content": "-----BEGIN OPENSSH PRIVATE KEY-----"},
+    )
     assert blocked.status_code == 422
     assert blocked.get_json()["error"] == "GUARDRAIL_SECRET_DETECTED"
 

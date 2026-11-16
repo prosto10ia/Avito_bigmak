@@ -13,8 +13,9 @@ const RoadmapResponseSchema = z.object({
     .object({
       xp: z.number(),
       level: z.number(),
-      mascot_stage: z.string(),
-      streak_days: z.number(),
+      completed: z.number().optional(),
+      mascot_stage: z.string().optional(),
+      streak_days: z.number().optional(),
     })
     .optional(),
 });

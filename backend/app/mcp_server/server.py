@@ -28,6 +28,10 @@ def scoped_idempotency_key(tool_name: str, user_id: str, key: str) -> str:
     return hashlib.sha256(f"{tool_name}|{user_id}|{key}".encode()).hexdigest()
 
 
+def proposal_storage_key(tool_name: str, user_id: str, key: str) -> str:
+    return f"proposal:{scoped_idempotency_key(tool_name, user_id, key)}"
+
+
 def verify_onboarding_task(session, user, payload):
     node = session.get(RoadmapNode, payload.get("node_id"))
     if node is None:

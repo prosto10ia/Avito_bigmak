@@ -1,10 +1,13 @@
+import uuid
+
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy import select
 
 from ..auth import current_user
 from ..db import session_scope
-from ..mcp_server.server import stable_key
+from ..mcp_server.server import proposal_storage_key, stable_key
 from ..middleware.guardrails import validate_no_secrets
-from ..models import User
+from ..models import RoadmapNode, ServiceRequest, User, UserNodeProgress
 from ..schemas import ChatMessageRequest
 from ..services.rag_service import collision_warning, escalation, search
 
@@ -85,6 +88,40 @@ def chat():
         return jsonify({"error": denied}), 403
     action = proposed_action(g.user, payload.message)
     if action:
+        with session_scope() as session:
+            if action["tool_name"] == "request_service_access":
+                active_service_node = session.scalar(
+                    select(RoadmapNode.id)
+                    .join(UserNodeProgress, UserNodeProgress.node_id == RoadmapNode.id)
+                    .where(
+                        UserNodeProgress.user_id == g.user.id,
+                        UserNodeProgress.status == "active",
+                        RoadmapNode.node_type == "service_action",
+                    )
+                    .order_by(RoadmapNode.order_index)
+                )
+                node_id = active_service_node or action["payload"].get("node_id")
+                action["payload"] = {**action["payload"], "node_id": node_id}
+                action["idempotency_key"] = stable_key(
+                    action["tool_name"], g.user.id, {"message": payload.message, "node_id": node_id}
+                )
+            proposal_key = proposal_storage_key(
+                action["tool_name"], g.user.id, action["idempotency_key"]
+            )
+            existing = session.scalar(
+                select(ServiceRequest).where(ServiceRequest.idempotency_key == proposal_key)
+            )
+            if existing is None:
+                session.add(
+                    ServiceRequest(
+                        id=f"proposal_{uuid.uuid4().hex}",
+                        user_id=g.user.id,
+                        tool_name=action["tool_name"],
+                        idempotency_key=proposal_key,
+                        payload={"payload": action["payload"]},
+                        status="pending_confirmation",
+                    )
+                )
         return jsonify(
             {
                 "reply": "Подтвердите действие в карточке.",

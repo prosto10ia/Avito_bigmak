@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { createApiClient } from '../api/client';
-import { RoadmapNodeCard, MascotProgressHeader } from '../components/ui';
+import { MascotProgressHeader } from '../components/ui';
 import { NodeVerificationModal } from '../components/roadmap/NodeVerificationModal';
 import { useAuthStore } from '../store/useAuthStore';
 import type { RoadmapNode } from '../types/domain';
@@ -18,15 +19,66 @@ const periods = [
   ['month_3', 'Месяц 3'],
   ['equator', 'Экватор'],
 ] as const;
+
+const statusLabels: Record<RoadmapNode['status'], string> = {
+  locked: 'Заблокирован',
+  active: 'Доступен сейчас',
+  waiting_approval: 'Ожидает проверки',
+  done: 'Завершён',
+};
+
+function RoadmapJourneyNode({
+  node,
+  onSelect,
+}: {
+  node: RoadmapNode;
+  onSelect: (node: RoadmapNode) => void;
+}) {
+  const icon =
+    node.status === 'done'
+      ? '✓'
+      : node.node_type === 'quiz'
+        ? '✦'
+        : node.node_type === 'service_action'
+          ? '↗'
+          : '○';
+  const dependencyLabel =
+    node.status === 'locked'
+      ? 'Откроется после предыдущего шага'
+      : node.status === 'done'
+        ? 'Можно открыть детали выполнения'
+        : statusLabels[node.status];
+
+  return (
+    <button
+      className={`node-card node-${node.status}`}
+      onClick={() => onSelect(node)}
+      aria-label={`${node.title}, ${statusLabels[node.status]}`}
+      aria-haspopup="dialog"
+    >
+      <span className="node-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span>
+        <strong>{node.title}</strong>
+        <small>{node.description}</small>
+        <small>{dependencyLabel}</small>
+      </span>
+      <b>+{node.xp_reward} XP</b>
+    </button>
+  );
+}
+
 export default function Roadmap() {
   const profile = useAuthStore((state) => state.profile);
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState<RoadmapNode | null>(null);
   const [feedback, setFeedback] = useState('');
   const [serviceTicket, setServiceTicket] = useState('');
   const query = useQuery({ queryKey: ['roadmap', profile.id, profile.role], queryFn: api.roadmap });
   const verify = useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       nodeId,
       artifact_type,
       content,
@@ -34,19 +86,25 @@ export default function Roadmap() {
       nodeId: string;
       artifact_type: string;
       content: string;
-    }) =>
-      artifact_type === 'service_access'
-        ? api.executeMcp({
-            tool_name: 'request_service_access',
-            payload: {
-              node_id: nodeId,
-              service_name: 'jira',
-              project_key: 'AUTO',
-              access_level: 'read',
-            },
-            idempotency_key: `roadmap:${nodeId}`,
-          })
-        : api.verifyNode(nodeId, { artifact_type, content }),
+    }) => {
+      if (artifact_type !== 'service_access') {
+        return api.verifyNode(nodeId, { artifact_type, content });
+      }
+      const proposal = await api.chatMessage('Запроси доступ к jira');
+      const action = proposal.proposed_mcp_action;
+      if (
+        !action ||
+        action.tool_name !== 'request_service_access' ||
+        action.payload?.node_id !== nodeId
+      ) {
+        throw new Error('Не удалось получить подтверждаемую заявку для этого шага');
+      }
+      return api.executeMcp({
+        tool_name: action.tool_name,
+        payload: action.payload,
+        idempotency_key: action.idempotency_key,
+      });
+    },
     onSuccess: (response, variables) => {
       if (variables.artifact_type === 'service_access') {
         const externalTicket =
@@ -61,13 +119,20 @@ export default function Roadmap() {
       } else {
         setSelected(null);
       }
+      setFeedback('');
       queryClient.invalidateQueries({ queryKey: ['roadmap'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
     onError: (error) =>
       setFeedback(error instanceof Error ? error.message : 'Не удалось проверить шаг'),
   });
-  const nodes = (query.data?.nodes ?? []) as RoadmapNode[];
+  const nodes = useMemo(() => (query.data?.nodes ?? []) as RoadmapNode[], [query.data?.nodes]);
+  useEffect(() => {
+    const requestedNode = searchParams.get('node');
+    if (!requestedNode || selected) return;
+    const node = nodes.find((item) => item.id === requestedNode);
+    if (node) setSelected(node);
+  }, [nodes, searchParams, selected]);
   return (
     <div className="page">
       <div className="section-head">
@@ -108,7 +173,15 @@ export default function Roadmap() {
             </div>
             <div className="node-list">
               {group.map((node) => (
-                <RoadmapNodeCard key={node.id} node={node} onSelect={setSelected} />
+                <RoadmapJourneyNode
+                  key={node.id}
+                  node={node}
+                  onSelect={(nextNode) => {
+                    setFeedback('');
+                    setServiceTicket('');
+                    setSelected(nextNode);
+                  }}
+                />
               ))}
             </div>
           </section>
@@ -116,6 +189,7 @@ export default function Roadmap() {
       })}
       {selected && (
         <NodeVerificationModal
+          key={selected.id}
           node={selected}
           onClose={() => {
             setSelected(null);
