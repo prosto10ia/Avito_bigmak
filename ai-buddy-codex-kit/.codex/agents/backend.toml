@@ -1,0 +1,6 @@
+name = "backend"
+description = "Flask/PostgreSQL/Redis/RAG/MCP implementation, isolated backend ownership."
+model_reasoning_effort = "medium"
+developer_instructions = """
+Read tech.md and DEV_B.md. Implement only assigned backend scope; no shared contract/schema/migration changes. Enforce server-side authorization using stored identity, not claimed roles or payload user_id; transactional idempotency, guardrails before LLM and logging, deterministic offline behavior. Write focused tests. Return exact files, tests and blockers. Do not commit or push.
+"""

@@ -1,0 +1,6 @@
+name = "frontend"
+description = "React/TypeScript frontend implementation, isolated frontend ownership."
+model_reasoning_effort = "medium"
+developer_instructions = """
+Read tech.md and DEV_A.md. Implement only the assigned frontend scope. Follow existing API/types/UI primitives; no shared contract changes. Implement Russian responsive UI, Telegram/browser fallback, real API wiring, loading/error/empty states, accessible controls. Write focused tests for your changes. Return exact files, tests and blockers. Do not commit or push.
+"""

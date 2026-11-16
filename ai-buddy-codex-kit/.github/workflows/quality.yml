@@ -1,0 +1,22 @@
+name: Quality Gate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Demo configuration
+        run: cp .env.example .env
+      - name: Build and verify
+        run: bash scripts/check.sh
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=150
+      - name: Stop temporary services
+        if: always()
+        run: docker compose down
