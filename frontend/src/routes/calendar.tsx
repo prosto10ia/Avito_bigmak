@@ -98,7 +98,7 @@ export default function Calendar() {
   };
   return (
     <div className="page">
-      <div className="section-head">
+      <div className="section-head calendar-page-header">
         <div>
           <span className="eyebrow">Встречи и дедлайны</span>
           <h2>Календарь</h2>
@@ -120,16 +120,26 @@ export default function Calendar() {
           </button>
         </div>
       )}
-      <section aria-label="Управление месяцем" className="section-head">
-        <button aria-label="Предыдущий месяц" onClick={() => goToMonth(-1)}>
+      <section aria-label="Управление месяцем" className="calendar-toolbar">
+        <button
+          className="month-step month-step-prev"
+          aria-label="Предыдущий месяц"
+          onClick={() => goToMonth(-1)}
+        >
           ←
         </button>
-        <h3 aria-live="polite">{formatMonth(month)}</h3>
-        <div>
-          <button className="secondary" onClick={goToToday}>
+        <h3 className="calendar-month-title" aria-live="polite">
+          {formatMonth(month)}
+        </h3>
+        <div className="calendar-month-actions">
+          <button className="secondary calendar-today" onClick={goToToday}>
             Сегодня
           </button>{' '}
-          <button aria-label="Следующий месяц" onClick={() => goToMonth(1)}>
+          <button
+            className="month-step month-step-next"
+            aria-label="Следующий месяц"
+            onClick={() => goToMonth(1)}
+          >
             →
           </button>
         </div>

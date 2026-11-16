@@ -114,9 +114,9 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
-          <div className="section-head">
+          <div className="section-head upcoming-header">
             <h3>Следующие встречи</h3>
-            <Link className="muted" to="/calendar">
+            <Link className="button-link" to="/calendar">
               Открыть календарь
             </Link>
           </div>
@@ -131,10 +131,14 @@ export default function Dashboard() {
             <div className="empty">Встреч пока нет — отличный момент для фокуса.</div>
           )}
           <nav className="quick-links" aria-label="Быстрые ссылки">
-            <Link to="/chat" aria-label="Быстрый переход в чат">
+            <Link className="button-link quick-link" to="/chat" aria-label="Быстрый переход в чат">
               Задать вопрос AI-помощнику
             </Link>
-            <Link to="/profile" aria-label="Быстрый переход в профиль">
+            <Link
+              className="button-link quick-link"
+              to="/profile"
+              aria-label="Быстрый переход в профиль"
+            >
               Открыть профиль
             </Link>
           </nav>

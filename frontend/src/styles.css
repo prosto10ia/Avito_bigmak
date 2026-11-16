@@ -14,7 +14,7 @@ body {
   max-width: 760px;
   margin: auto;
   min-height: 100vh;
-  padding-bottom: 84px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 .topbar {
   display: flex;
@@ -102,6 +102,10 @@ body {
   gap: 8px;
   margin: 10px 0 20px;
 }
+.quick-links .quick-link {
+  padding: 8px 11px;
+  font-size: 13px;
+}
 .section-head {
   display: flex;
   justify-content: space-between;
@@ -121,7 +125,7 @@ body {
   align-items: center;
   gap: 10px;
   text-align: left;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid #e5eaf2;
   background: #fff;
   border-radius: 14px;
@@ -143,6 +147,18 @@ body {
 }
 .node-locked {
   opacity: 0.58;
+}
+.node-active {
+  border-color: #7566e866;
+  box-shadow: 0 5px 16px #7566e81a;
+}
+.node-waiting_approval {
+  border-color: #da8a25aa;
+  background: #fffaf1;
+}
+.node-done {
+  border-color: #35a27688;
+  background: #f6fcf8;
 }
 .bottom-nav {
   position: fixed;
@@ -256,11 +272,11 @@ button {
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 .profile-grid div {
   background: #fff;
-  padding: 12px;
+  padding: 10px;
   border-radius: 12px;
 }
 .profile-grid strong,
@@ -337,14 +353,14 @@ button {
 }
 .chat-list {
   display: grid;
-  gap: 12px;
-  margin: 18px 0;
+  gap: 10px;
+  margin: 12px 0;
 }
 .chat-message {
   background: #fff;
   border: 1px solid #e5eaf2;
   border-radius: 16px;
-  padding: 14px;
+  padding: 12px;
 }
 .user-message {
   justify-self: end;
@@ -376,7 +392,7 @@ button {
   gap: 8px;
   align-items: flex-end;
   position: sticky;
-  bottom: 84px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
   background: #f5f7fb;
   padding-top: 8px;
 }
@@ -403,7 +419,7 @@ label input {
   text-decoration: none;
 }
 .roadmap-period {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 .quiz-fields,
 .quiz-fields label {
@@ -413,6 +429,27 @@ label input {
 .quiz-fields {
   gap: 10px;
   margin: 12px 0;
+}
+.calendar-toolbar {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 10px;
+}
+.calendar-month-title {
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+.calendar-month-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.calendar-month-actions .calendar-today {
+  white-space: nowrap;
 }
 .calendar-grid {
   display: grid;
@@ -473,6 +510,13 @@ label input {
 }
 .profile-card {
   text-align: center;
+  padding: 14px;
+}
+.profile-card h3 {
+  margin: 8px 0 2px;
+}
+.profile-card > .muted {
+  margin: 0 0 12px;
 }
 .profile-avatar {
   width: 56px;
@@ -513,6 +557,21 @@ label input {
   .profile-grid {
     grid-template-columns: 1fr 1fr;
   }
+  .section-head {
+    gap: 10px;
+  }
+  .upcoming-header {
+    align-items: flex-start;
+  }
+  .upcoming-header h3 {
+    line-height: 1.25;
+  }
+  .upcoming-header .button-link {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
   .node-card {
     grid-template-columns: 28px 1fr;
   }
@@ -522,6 +581,14 @@ label input {
   .chat-form {
     align-items: stretch;
     flex-direction: column;
+  }
+  .chip-row {
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .chip {
+    padding: 7px 9px;
+    font-size: 12px;
   }
   .chat-form button {
     width: 100%;
@@ -533,6 +600,47 @@ label input {
   }
   .calendar-grid {
     gap: 3px;
+  }
+  .calendar-page-header {
+    align-items: flex-start;
+  }
+  .calendar-page-header button {
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+  .calendar-toolbar {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    grid-template-areas:
+      'previous title next'
+      'today today today';
+    gap: 5px 7px;
+    align-items: center;
+    margin: 16px 0 10px;
+  }
+  .calendar-month-title {
+    grid-area: title;
+    min-width: 0;
+    margin: 0;
+    text-align: center;
+    font-size: clamp(14px, 4.6vw, 18px);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .month-step-prev {
+    grid-area: previous;
+  }
+  .month-step-next {
+    grid-area: next;
+  }
+  .calendar-month-actions {
+    display: contents;
+  }
+  .calendar-today {
+    grid-area: today;
+    justify-self: center;
+    margin-top: 2px;
+    padding: 7px 11px;
   }
   .summary-actions button {
     flex: 1 1 100%;
