@@ -62,3 +62,23 @@ For each checkpoint record: stage, tech.md version, commit, tests and exit codes
 - Redis is provisioned and healthy for the demo, but the current MVP RAG path uses deterministic local retrieval; Redis caching and pgvector ranking remain post-MVP hardening work.
 - The Playwright dependency reports npm audit findings in the demo toolchain; dependency upgrades are deferred until after the MVP path is stable.
 - Final reviewer PASS: no P0/P1 product blocker remains; P2 backlog is intentionally deferred after the 30-minute MVP-focused scope.
+
+## Local Ollama / Qwen2.5 checkpoint
+
+- Implemented `OllamaProvider` with local-only host validation and `POST /api/chat` using
+  `stream=false`, temperature `0.2`, `num_ctx=4096`, `num_predict=384` and a configurable
+  timeout for first-load/Gunicorn latency.
+- Chat now sends only RBAC-filtered, secret-checked RAG fragments to the model, keeps
+  citations/conflict warnings/escalation and MCP confirmation unchanged, and falls back to
+  the deterministic source answer on any Ollama error. The UI labels `Ollama · Qwen2.5:3b`
+  or the offline mode explicitly.
+- Native verification: `ollama list` shows `qwen2.5:3b` (1.9 GB); a real host request to
+  `http://127.0.0.1:11434/api/chat` returned a Russian response. Container verification is
+  also passed: a backend-container request through `host.docker.internal:11434` returned
+  `qwen2.5:3b`, and the full `/api/v1/chat/message` scenario returned `llm_mode=ollama`,
+  two citations and a conflict warning.
+- Added targeted provider and chat fallback tests; removed cloud LLM settings from Compose
+  and `.env.example`. Verification: backend targeted tests 6 passed, Ruff check/format passed,
+  frontend typecheck/16 tests/production build passed, and Playwright smoke 4 passed. The
+  first sandboxed Playwright attempt was blocked before browser startup by macOS permissions;
+  the approved retry passed. `.DS_Store` remains unrelated and unstaged.

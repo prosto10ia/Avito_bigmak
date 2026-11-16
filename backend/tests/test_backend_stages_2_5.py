@@ -91,6 +91,35 @@ def test_rag_collision_and_negative_access(client):
     assert unknown.get_json()["escalation"]["recipient"] == "buddy"
 
 
+def test_chat_reports_ollama_and_falls_back_without_leaking_access(monkeypatch, client):
+    import app.api.chat as chat_api
+
+    monkeypatch.setattr(
+        chat_api.OllamaProvider, "generate", lambda self, prompt: "Ответ модели [1]"
+    )
+    live = client.post(
+        "/api/v1/chat/message",
+        headers=headers(),
+        json={"message": "Как катить на staging в кластере Auto?"},
+    ).get_json()
+    assert live["llm_mode"] == "ollama"
+    assert live["sources"]
+    assert live["reply"] == "Ответ модели [1]"
+
+    def unavailable(self, prompt):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(chat_api.OllamaProvider, "generate", unavailable)
+    fallback = client.post(
+        "/api/v1/chat/message",
+        headers=headers(),
+        json={"message": "Как катить на staging в кластере Auto?"},
+    ).get_json()
+    assert fallback["llm_mode"] == "offline"
+    assert fallback["sources"]
+    assert fallback["sources"][0]["content"] in fallback["reply"]
+
+
 def test_mcp_confirmation_idempotency_and_security(client):
     action = client.post(
         "/api/v1/chat/message", headers=headers(), json={"message": "Оформи отгул"}

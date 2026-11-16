@@ -29,6 +29,7 @@ const VerifyNodeResponseSchema = z.object({
 });
 const ChatResponseSchema = z.object({
   reply: z.string(),
+  llm_mode: z.enum(['ollama', 'offline']).default('offline'),
   sources: z.array(z.any()).default([]),
   conflict_warning: z.any().nullable().default(null),
   escalation: z.any().nullable().default(null),

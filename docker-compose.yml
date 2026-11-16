@@ -22,9 +22,10 @@ services:
       DATABASE_URL: postgresql://avito:avito@postgres:5432/aibuddy
       REDIS_URL: redis://redis:6379/0
       DEMO_ACCESS_CODE: ${DEMO_ACCESS_CODE:-hack-and-change-2026}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_API_BASE: ${LLM_API_BASE:-https://api.openai.com/v1}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["127.0.0.1:8000:8000"]
     command: ["sh", "-c", "python seed.py && gunicorn --bind 0.0.0.0:8000 --workers 2 'app:create_app()'"]
     depends_on: {postgres: {condition: service_healthy}, redis: {condition: service_healthy}}

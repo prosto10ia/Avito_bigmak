@@ -54,7 +54,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "status": "ok",
                     "database": "ok",
                     "redis": redis_status,
-                    "offline_llm": not bool(app.config.get("LLM_API_KEY")),
+                    "llm_provider": "ollama",
+                    "llm_model": app.config["OLLAMA_MODEL"],
                 }
             )
         except Exception:

@@ -95,6 +95,11 @@ export default function Chat() {
               {message.response.conflict_warning && (
                 <ConflictWarningBanner conflict={message.response.conflict_warning} />
               )}
+              <span className="source-chip">
+                {message.response.llm_mode === 'ollama'
+                  ? 'Ollama · Qwen2.5:3b'
+                  : 'Резервный offline-режим'}
+              </span>
               <p>{message.response.reply}</p>
               <div className="actions">
                 <button
